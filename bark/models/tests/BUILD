@@ -44,6 +44,7 @@ cc_test(
         "//bark/models/observer:observer_model",
         "//bark/models/observer:observer_model_none",
         "//bark/models/observer:observer_model_parametric",
+        "//bark/models/observer/utils:ellipsis",
         "//bark/world/tests:make_test_world",
         "@gtest//:gtest_main",
     ],

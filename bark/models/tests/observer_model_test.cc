@@ -9,6 +9,7 @@
 #include "bark/models/observer/observer_model.hpp"
 #include "bark/models/observer/observer_model_none.hpp"
 #include "bark/models/observer/observer_model_parametric.hpp"
+#include "bark/models/observer/utils/ellipsis.hpp"
 #include "bark/world/tests/make_test_world.hpp"
 #include "bark/commons/params/setter_params.hpp"
 
@@ -21,9 +22,25 @@ using namespace bark::world::tests;
 using namespace bark::world;
 using namespace bark::models::dynamic;
 using namespace bark::models::observer;
+using namespace bark::models::observer::utils;
 using namespace bark::models::behavior;
 using namespace bark::world::tests;
 using namespace bark::models::execution;
+
+TEST(ellipsis, angle_generation) {
+  const std::vector<double> delta_theta{1.5, 1.5};
+  std::vector<std::vector<double>> permutated_angles =
+    GetAllPermutatedAngles(delta_theta);
+  
+  for (auto angles : permutated_angles) {
+    std::cout << "Angle : ";
+    for (auto a : angles) {
+      std::cout << a << ", ";
+    }
+    std::cout << std::endl;
+  }
+
+}
 
 TEST(observer_model_none, base_test) {
   using bark::models::observer::ObserverModelNone;
