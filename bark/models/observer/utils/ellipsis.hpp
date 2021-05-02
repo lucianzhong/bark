@@ -86,11 +86,14 @@ std::vector<std::vector<double>> GetAllPermutatedAngles(
   return permutated_angles;
 }
 
-using Matrix = Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic>;
-Matrix ComputeEVs(const Matrix& cov) {
-  // EigenSolver<Matrix> es(cov);
-  // Matrix evs = es.eigenvectors();
-  // return evs;
+using MatrixD = Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic>;
+using MatrixC = Eigen::Matrix<
+  std::complex<double>, Eigen::Dynamic, Eigen::Dynamic>;
+// complex<double>
+MatrixC ComputeEVs(const MatrixD& cov) {
+  Eigen::EigenSolver<MatrixD> es(cov);
+  MatrixC evs = es.eigenvectors();
+  return evs;
 }
 
 

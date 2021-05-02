@@ -28,7 +28,7 @@ using namespace bark::world::tests;
 using namespace bark::models::execution;
 
 TEST(ellipsis, angle_generation) {
-  const std::vector<double> delta_theta{1.5, 1.5};
+  const std::vector<double> delta_theta{M_PI_4, M_PI_4, M_PI_4};
   std::vector<std::vector<double>> permutated_angles =
     GetAllPermutatedAngles(delta_theta);
   
@@ -39,6 +39,22 @@ TEST(ellipsis, angle_generation) {
     }
     std::cout << std::endl;
   }
+
+}
+
+TEST(ellipsis, eigenvectors) {
+  MatrixD cov(3,3);
+  cov << 1., 0., 0.,
+         0., 1., 0.,
+         0., 0., 1.;
+  auto evs = ComputeEVs(cov);
+  auto rot_mat = evs.real();
+
+  std::cout << rot_mat << std::endl;
+  // const std::vector<double> delta_theta{M_PI_4, M_PI_4, M_PI_4};
+  // std::vector<std::vector<double>> permutated_angles =
+  //   GetAllPermutatedAngles(delta_theta);
+
 
 }
 
