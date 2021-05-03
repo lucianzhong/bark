@@ -26,7 +26,11 @@ from bark.runtime.viewer.matplotlib_viewer import MPViewer
 from bark.core.models.behavior import BehaviorModel, BehaviorDynamicModel
 from bark.core.models.dynamic import SingleTrackModel
 from bark.core.models.observer import *
-
+from bark.core.models.behavior import *
+from bark.core.models.dynamic import *
+from bark.core.models.execution import *
+from bark.core.geometry.standard_shapes import *
+from bark.core.world.agent import *
 
 # NOTE: this is testing the PyObserverModel wrapping
 class PythonObserverModel(ObserverModel):
@@ -87,15 +91,36 @@ class PyObserverModelTests(unittest.TestCase):
   #   world.observer_model = observer_model
   #   world.Step(0.2)
   #   assert(world.observer_model == observer_model)
+
+  def test_3d_points_on_sphere(self):
+    cov = np.array([
+      [3., 0., 0.],
+      [0., 1., 0.],
+      [0., 0., 2.]])
+    perm_angles = GetAllPermutatedAngles([.3, .3])
+    pts = GetPointsOnSphere(cov, perm_angles, .98)
+    pts = np.array(pts)
     
-  def test_points_on_sphere(self):
+    print(pts.shape)    
+    fig = plt.figure()
+    ax = Axes3D(fig)
+    ax.plot(pts[:, 0], pts[:, 1], pts[:, 2], "r*")
+
+
+    pts = GetPointsOnSphere(0.5*cov, perm_angles, .98)
+    pts = np.array(pts)
+    ax.plot(pts[:, 0], pts[:, 1], pts[:, 2], "b*")
+    # plt.axis("equal")
+    # plt.show()
+    
+  def test_4d_points_on_sphere(self):
     cov = np.array([
       [3., 0., 0., 0.],
       [0., 1., 0., 0.],
       [0., 0., 2., 0.],
       [0., 0., 0., 3.]])
     perm_angles = GetAllPermutatedAngles([.5, .5, .5])
-    pts = GetPointsOnSphere(cov, perm_angles, 1.)
+    pts = GetPointsOnSphere(cov, perm_angles, 0.98)
     pts = np.array(pts)
     
     print(pts.shape)    
@@ -103,11 +128,37 @@ class PyObserverModelTests(unittest.TestCase):
     ax = Axes3D(fig)
     ax.plot(pts[:, 0], pts[:, 1], pts[:, 2], "r*")
     ax.plot(pts[:, 1], pts[:, 2], pts[:, 3], "b*")
-    ax.set_xlim([-1, 1])
-    ax.set_ylim([-1, 1])
-    ax.set_zlim([-1, 1])
-    plt.show()
+    # ax.set_xlim([-1, 1])
+    # ax.set_ylim([-1, 1])
+    # ax.set_zlim([-1, 1])
+    # plt.show()
     
+  def test_agent_state_isoline(self):
+    params = ParameterServer()
+    behavior = BehaviorIDMClassic(params)
+    execution = ExecutionModelInterpolate(params)
+    dynamic = SingleTrackModel(params)
+    shape = CarLimousine()
+    init_state = np.array([0, 0, 0, 0, 5])
+    goal_polygon = Polygon2d([0, 0, 0],[Point2d(-1,-1),Point2d(-1,1),Point2d(1,1), Point2d(1,-1)])
+    goal_definition = GoalDefinitionPolygon(goal_polygon)
+    agent = Agent(init_state, behavior, dynamic, execution, shape, params.AddChild("agent"), goal_definition)
+    
+    cov = np.array([
+      [3., 0., 0.],
+      [0., 1., 0.],
+      [0., 0., 5.]])
+    delta_theta = [0.5, 0.5]
+    agent_list = ObserveAtIsoLine(agent, delta_theta, cov, 0.98)
+    
+    
+    fig = plt.figure()
+    ax = Axes3D(fig)
+    ax.set_title("Agent states")
+    for agent in agent_list:
+      state = agent.state
+      plt.plot([state[1]], [state[2]], state[3], 'r*')
+    plt.show()
     
 
 

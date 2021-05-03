@@ -60,4 +60,6 @@ void python_observer(py::module m) {
     }));
   m.def("GetPointsOnSphere", &GetPointsOnSphere);
   m.def("GetAllPermutatedAngles", &GetAllPermutatedAngles);
+  m.def("ObserveAtIsoLine", &ObserveAtIsoLine);
+  
 }

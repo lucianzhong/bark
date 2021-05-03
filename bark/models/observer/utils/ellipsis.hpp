@@ -8,9 +8,9 @@
 
 #ifndef BARK_MODELS_OBSERVER_UTILS_ELLIPSIS_HPP_
 #define BARK_MODELS_OBSERVER_UTILS_ELLIPSIS_HPP_
-
 #include <memory>
 #include <Eigen/Eigenvalues> 
+#include <boost/math/distributions/chi_squared.hpp>
 #include "bark/commons/base_type.hpp"
 
 namespace bark {
@@ -19,6 +19,8 @@ namespace bark {
 namespace world {
 namespace objects {
 typedef unsigned int AgentId;
+class Agent;
+typedef std::shared_ptr<Agent> AgentPtr;
 }  // namespace objects
 class ObservedWorld;
 class World;
@@ -29,7 +31,13 @@ namespace models {
 namespace observer {
 namespace utils {
 
+using bark::world::objects::Agent;
+using bark::world::objects::AgentPtr;
+using models::dynamic::State;
 
+/**
+ * @brief  Function that recursively computes all angle combinations
+ */
 void expand(
   const std::map<int, std::vector<double>>& dim_angles,
   std::vector<int> curr_ids,
@@ -62,6 +70,12 @@ void expand(
   }
 }
 
+/**
+ * @brief  Returns all permutated angles
+ * @note   
+ * @param  delta_theta: e.g., [0.25, 0.5]
+ * @retval 
+ */
 std::vector<std::vector<double>> GetAllPermutatedAngles(
   const std::vector<double>& delta_theta) {
   // initialize angles
@@ -83,6 +97,9 @@ std::vector<std::vector<double>> GetAllPermutatedAngles(
   return permutated_angles;
 }
 
+/**
+ * @brief  Computes Eigenvectors and values
+ */
 using MatrixD = Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic>;
 using MatrixC = Eigen::Matrix<
   std::complex<double>, Eigen::Dynamic, Eigen::Dynamic>;
@@ -93,37 +110,56 @@ std::pair<MatrixC, MatrixC> ComputeEVs(const MatrixD& cov) {
   return std::make_pair(e_vec, e_values);
 }
 
+/**
+ * @brief  Returns all points on an n-dimensional sphere that lie
+ *         on the isoline
+ * @note   
+ * @param  cov: covariance matrix
+ * @param  permutated_angles: all angle combinations for n-1 dimensions
+ * @param  p_iso: e.g., 0.98 quantile
+ * @retval 
+ */
 std::vector<std::vector<double>> GetPointsOnSphere(
   const MatrixD& cov,
   const std::vector<std::vector<double>>& permutated_angles,
-  double p_iso = 0.1) {
+  double p_iso = 0.98) {
  
   auto e_vec_val = ComputeEVs(cov);
   auto evec_mat = std::get<0>(e_vec_val).real();
   auto eval_mat = std::get<1>(e_vec_val).real();
 
-  // https://www.michaelchughes.com/blog/2013/01/why-contours-for-multivariate-gaussian-are-elliptical/
+  // NOTE: for the isolines
+  // this gives us (x/a^2) + ... = C
+  // https://www.visiondummy.com/2014/04/draw-error-ellipse-representing-covariance-matrix/
+  // https://people.richland.edu/james/lecture/m170/tbl-chi.html
+  // degree of freedom is size - 1
+  boost::math::chi_squared mydist(eval_mat.size() - 1);
+  auto C = quantile(mydist, p_iso);
+  // std::cout << "dimension: " << eval_mat.size() << ", ucv: " << ucv << std::endl;
+
   std::vector<double> coeffs;
   for (int i = 0; i < eval_mat.size(); i++) {
-    double coeff = p_iso/evec_mat(i, i)/eval_mat(i);
+    // scaled EVs
+    // see: https://www.michaelchughes.com/blog/2013/01/why-contours-for-multivariate-gaussian-are-elliptical/
+    double coeff = C/evec_mat(i, i)/eval_mat(i);
     coeffs.push_back(coeff);
   }
 
-  // std::cout << "a_sq: " << a_sq << ", b_sq: " << b_sq  << ", c_sq: " << c_sq << std::endl;
   std::vector<std::vector<double>> points_on_sphere;
   for (auto d : permutated_angles) {
-    // spherical coordinates (R=1 plots unitsphere)
+    // n-spherical coordinates
     // https://math.stackexchange.com/questions/50953/volume-of-region-in-5d-space/51406#51406
     // https://en.wikipedia.org/wiki/N-sphere#Spherical_coordinates
     double sin_chain = 1;
     std::vector<double> hyper_sphere_coord;
     for (int n = 0; n < d.size(); n++){
-      // sin(d0)sin(d1) .. sin(d2)
-      double even_coeff = sin_chain*cos(d[n]);
-      hyper_sphere_coord.push_back(even_coeff);
+      double coeff = sin_chain*cos(d[n]);
+      hyper_sphere_coord.push_back(coeff);
       sin_chain *= sin(d[n]);
     }
     hyper_sphere_coord.push_back(sin_chain);
+
+    // computed coefficients x spherical coordinates
     std::vector<double> pts;
     for (int i = 0; i < coeffs.size(); i++){
       pts.push_back(coeffs[i]*hyper_sphere_coord[i]);
@@ -135,7 +171,8 @@ std::vector<std::vector<double>> GetPointsOnSphere(
 
 // ObserveAtIsoLine(AgentPtr (o_t), angular_delta (vector with dimensions of multivariate distribution), P_ISO)  -> std::vector (2pi/angular_delta_dim12pi/angular_delta_dim22pi/angular_delta_dim3*2pi/angular_delta_dim3) (Patrick)
 std::vector<AgentPtr> ObserveAtIsoLine(
-  const AgentPtr& agent, std::vector<double> delta_theta, const MatrixD& cov, double p_iso) {
+  const AgentPtr& agent, std::vector<double> delta_theta,
+  const MatrixD& cov, double p_iso) {
 
   std::vector<std::vector<double>> permutated_angles =
     GetAllPermutatedAngles(delta_theta);
@@ -143,12 +180,24 @@ std::vector<AgentPtr> ObserveAtIsoLine(
   std::vector<std::vector<double>> pts_on_sphere = 
     GetPointsOnSphere(cov, permutated_angles, p_iso);
 
-  for (const auto& pt: pts_on_sphere) {
-    // auto agent = agent.Clone();
-    // modify state here
+  // clone, assign and return AgentPtr vector
+  std::vector<AgentPtr> agent_list;
+  for (const auto& pt : pts_on_sphere) {
+    AgentPtr new_agent(new Agent(*agent));
 
+    // TODO: this needs to be adapted
+    // TODO: if we have d_lon, d_lat, dv_lat, dv_lon
+    // TODO: how to calculate agent state then?
+    State state = agent->GetCurrentState();
+    for (int i = 1; i <= pt.size(); i++) {
+      state(i) += pt[i-1];
+    }
+
+    new_agent->SetCurrentState(state);
+    agent_list.push_back(new_agent);
   }
 
+  return agent_list;
 }
 
 }
