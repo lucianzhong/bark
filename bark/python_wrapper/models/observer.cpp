@@ -9,10 +9,12 @@
 #include "observer.hpp"
 #include "bark/models/observer/observer_model_none.hpp"
 #include "bark/models/observer/observer_model_parametric.hpp"
+#include "bark/models/observer/utils/ellipsis.hpp"
 #include <string>
 
 namespace py = pybind11;
 using namespace bark::commons;
+using namespace bark::models::observer::utils;
 using std::shared_ptr;
 
 void python_observer(py::module m) {
@@ -56,5 +58,6 @@ void python_observer(py::module m) {
         return new ObserverModelParametric(
             PythonToParams(t[0].cast<py::tuple>()));
     }));
-
+  m.def("GetPointsOnSphere", &GetPointsOnSphere);
+  m.def("GetAllPermutatedAngles", &GetAllPermutatedAngles);
 }

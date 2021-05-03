@@ -8,6 +8,8 @@
 
 
 import unittest
+from mpl_toolkits.mplot3d import Axes3D
+import matplotlib.pyplot as plt
 import os
 import numpy as np
 from bark.runtime.scenario.scenario_generation.deterministic \
@@ -23,7 +25,7 @@ from bark.runtime.runtime import Runtime
 from bark.runtime.viewer.matplotlib_viewer import MPViewer
 from bark.core.models.behavior import BehaviorModel, BehaviorDynamicModel
 from bark.core.models.dynamic import SingleTrackModel
-from bark.core.models.observer import ObserverModel, ObserverModelNone, ObserverModelParametric
+from bark.core.models.observer import *
 
 
 # NOTE: this is testing the PyObserverModel wrapping
@@ -62,29 +64,45 @@ def GetParamServerAndWorld():
 
 
 class PyObserverModelTests(unittest.TestCase):
-  def test_observer_model_none(self):
-    world, param_server = GetParamServerAndWorld()
-    # NOTE: create and assign ObserverModelNone
-    observer_model = ObserverModelNone(param_server)
-    world.observer_model = observer_model
-    world.Step(0.2)
-    assert(world.observer_model == observer_model)
+  # def test_observer_model_none(self):
+  #   world, param_server = GetParamServerAndWorld()
+  #   # NOTE: create and assign ObserverModelNone
+  #   observer_model = ObserverModelNone(param_server)
+  #   world.observer_model = observer_model
+  #   world.Step(0.2)
+  #   assert(world.observer_model == observer_model)
     
-  def test_py_observer_model_none(self):
-    world, param_server = GetParamServerAndWorld()
-    # NOTE: create and assign PythonObserverModel
-    observer_model = PythonObserverModel(param_server)
-    world.observer_model = observer_model
-    world.Step(0.2)
-    assert(world.observer_model == observer_model)
+  # def test_py_observer_model_none(self):
+  #   world, param_server = GetParamServerAndWorld()
+  #   # NOTE: create and assign PythonObserverModel
+  #   observer_model = PythonObserverModel(param_server)
+  #   world.observer_model = observer_model
+  #   world.Step(0.2)
+  #   assert(world.observer_model == observer_model)
 
-  def test_observer_model_parametric(self):
-    world, param_server = GetParamServerAndWorld()
-    # NOTE: create and assign PythonObserverModel
-    observer_model = ObserverModelParametric(param_server)
-    world.observer_model = observer_model
-    world.Step(0.2)
-    assert(world.observer_model == observer_model)
+  # def test_observer_model_parametric(self):
+  #   world, param_server = GetParamServerAndWorld()
+  #   # NOTE: create and assign PythonObserverModel
+  #   observer_model = ObserverModelParametric(param_server)
+  #   world.observer_model = observer_model
+  #   world.Step(0.2)
+  #   assert(world.observer_model == observer_model)
+    
+  def test_points_on_sphere(self):
+    cov = np.array([[3., 0., 0.], [0., 1., 0.], [0., 0., 2.]])
+    perm_angles = GetAllPermutatedAngles([.25, .25])
+    pts = GetPointsOnSphere(cov, perm_angles, 1.)
+    pts = np.array(pts)
+    
+    fig = plt.figure()
+    ax = Axes3D(fig)
+    ax.plot(pts[:, 0], pts[:, 1], pts[:, 2], "r*")
+    ax.set_xlim([-1, 1])
+    ax.set_ylim([-1, 1])
+    ax.set_zlim([-1, 1])
+    plt.show()
+    
+    
 
 
 if __name__ == '__main__':
