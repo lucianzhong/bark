@@ -89,14 +89,20 @@ class PyObserverModelTests(unittest.TestCase):
   #   assert(world.observer_model == observer_model)
     
   def test_points_on_sphere(self):
-    cov = np.array([[3., 0., 0.], [0., 1., 0.], [0., 0., 2.]])
-    perm_angles = GetAllPermutatedAngles([.25, .25])
+    cov = np.array([
+      [3., 0., 0., 0.],
+      [0., 1., 0., 0.],
+      [0., 0., 2., 0.],
+      [0., 0., 0., 3.]])
+    perm_angles = GetAllPermutatedAngles([.5, .5, .5])
     pts = GetPointsOnSphere(cov, perm_angles, 1.)
     pts = np.array(pts)
     
+    print(pts.shape)    
     fig = plt.figure()
     ax = Axes3D(fig)
     ax.plot(pts[:, 0], pts[:, 1], pts[:, 2], "r*")
+    ax.plot(pts[:, 1], pts[:, 2], pts[:, 3], "b*")
     ax.set_xlim([-1, 1])
     ax.set_ylim([-1, 1])
     ax.set_zlim([-1, 1])

@@ -101,20 +101,34 @@ std::vector<std::vector<double>> GetPointsOnSphere(
   auto e_vec_val = ComputeEVs(cov);
   auto evec_mat = std::get<0>(e_vec_val).real();
   auto eval_mat = std::get<1>(e_vec_val).real();
+
   // https://www.michaelchughes.com/blog/2013/01/why-contours-for-multivariate-gaussian-are-elliptical/
-  double a_sq = p_iso/evec_mat(0, 0)/eval_mat(0);
-  double b_sq = p_iso/evec_mat(1, 1)/eval_mat(1);
-  double c_sq = p_iso/evec_mat(2, 2)/eval_mat(2);
+  std::vector<double> coeffs;
+  for (int i = 0; i < eval_mat.size(); i++) {
+    double coeff = p_iso/evec_mat(i, i)/eval_mat(i);
+    coeffs.push_back(coeff);
+  }
 
   // std::cout << "a_sq: " << a_sq << ", b_sq: " << b_sq  << ", c_sq: " << c_sq << std::endl;
   std::vector<std::vector<double>> points_on_sphere;
   for (auto d : permutated_angles) {
     // spherical coordinates (R=1 plots unitsphere)
-    // https://stackoverflow.com/questions/36816537/spherical-coordinates-plot-in-matplotlib
-    double x = a_sq*sin(d[0])*cos(d[1]); 
-    double y = b_sq*sin(d[0])*sin(d[1]); 
-    double z = c_sq*cos(d[0]); 
-    points_on_sphere.push_back({x,y,z});
+    // https://math.stackexchange.com/questions/50953/volume-of-region-in-5d-space/51406#51406
+    // https://en.wikipedia.org/wiki/N-sphere#Spherical_coordinates
+    double sin_chain = 1;
+    std::vector<double> hyper_sphere_coord;
+    for (int n = 0; n < d.size(); n++){
+      // sin(d0)sin(d1) .. sin(d2)
+      double even_coeff = sin_chain*cos(d[n]);
+      hyper_sphere_coord.push_back(even_coeff);
+      sin_chain *= sin(d[n]);
+    }
+    hyper_sphere_coord.push_back(sin_chain);
+    std::vector<double> pts;
+    for (int i = 0; i < coeffs.size(); i++){
+      pts.push_back(coeffs[i]*hyper_sphere_coord[i]);
+    }
+    points_on_sphere.push_back(pts);
   }
   return points_on_sphere;
 }
