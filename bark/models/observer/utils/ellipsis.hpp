@@ -127,6 +127,8 @@ std::vector<std::vector<double>> GetPointsOnSphere(
   auto e_vec_val = ComputeEVs(cov);
   auto evec_mat = std::get<0>(e_vec_val).real();
   auto eval_mat = std::get<1>(e_vec_val).real();
+  std::cout << evec_mat << std::endl;
+  std::cout << eval_mat << std::endl;
 
   // NOTE: for the isolines
   // this gives us (x/a^2) + ... = C
@@ -141,7 +143,7 @@ std::vector<std::vector<double>> GetPointsOnSphere(
   for (int i = 0; i < eval_mat.size(); i++) {
     // scaled EVs
     // see: https://www.michaelchughes.com/blog/2013/01/why-contours-for-multivariate-gaussian-are-elliptical/
-    double coeff = C/evec_mat(i, i)/eval_mat(i);
+    double coeff = C/sqrt(eval_mat(i));
     coeffs.push_back(coeff);
   }
 
@@ -164,8 +166,21 @@ std::vector<std::vector<double>> GetPointsOnSphere(
     for (int i = 0; i < coeffs.size(); i++){
       pts.push_back(coeffs[i]*hyper_sphere_coord[i]);
     }
-    points_on_sphere.push_back(pts);
+
+    // rotate spherical coordinates
+    MatrixD eigen_pts(pts.size(), 1);
+    for (int i = 0; i < pts.size(); i++) {
+      eigen_pts(i, 0) = pts[i];
+    }
+    auto res = evec_mat.transpose()*eigen_pts;
+    std::vector<double> rot_pts;
+    for (int i = 0; i < pts.size(); i++) {
+      rot_pts.push_back(res(i, 0));
+    }
+
+    points_on_sphere.push_back(rot_pts);
   }
+
   return points_on_sphere;
 }
 

@@ -23,14 +23,16 @@ using namespace bark::commons;
 
 ObserverModelParametric::ObserverModelParametric(bark::commons::ParamsPtr params) :
   ObserverModel(params),
-  ego_state_deviation_dist_(params->GetDistribution("ObserverModelParametric::EgoStateDeviationDist",
-                                  "From what distribution is the ego frenet state deviations "
-                                  "sampled, must have dimension = 5",
-                                  "MultivariateDistribution")),
-  others_state_deviation_dist_(params->GetDistribution("ObserverModelParametric::OtherStateDeviationDist",
-                                  "From what distribution is the others frenet state deviation"
-                                  "sampled, must have dimension = 5",
-                                  "MultivariateDistribution")) {}
+  ego_state_deviation_dist_(
+    params->GetDistribution("ObserverModelParametric::EgoStateDeviationDist",
+                            "From what distribution is the ego frenet state deviations "
+                            "sampled, must have dimension = 5",
+                            "MultivariateDistribution")),
+  others_state_deviation_dist_(
+    params->GetDistribution("ObserverModelParametric::OtherStateDeviationDist",
+                            "From what distribution is the others frenet state deviation"
+                            "sampled, must have dimension = 5",
+                            "MultivariateDistribution")) {}
 
 ObserverModelParametric::ObserverModelParametric(const ObserverModelParametric& observer_model) :
       ObserverModel(observer_model.GetParams()),
@@ -58,14 +60,16 @@ ObservedWorld ObserverModelParametric::Observe(
   return observed_world;
 }
 
-void ObserverModelParametric::AddStateDeviationFrenet(const AgentPtr& agent, const DistributionPtr& multi_dim_distribution) const {
+void ObserverModelParametric::AddStateDeviationFrenet(
+  const AgentPtr& agent, const DistributionPtr& multi_dim_distribution) const {
   // Get Current Frenet State of Agent
   const Point2d pos = agent->GetCurrentPosition();
   const auto& lane_corridor = agent->GetRoadCorridor()->GetCurrentLaneCorridor(pos);
   if(!lane_corridor) {
     return;
   };
-  FrenetState current_frenet_state(agent->GetCurrentState(), lane_corridor->GetCenterLine());
+  FrenetState current_frenet_state(
+    agent->GetCurrentState(), lane_corridor->GetCenterLine());
 
   // Add sampled frenet deviation to current frenet state
   const auto frenet_deviation = multi_dim_distribution->Sample();
@@ -75,7 +79,8 @@ void ObserverModelParametric::AddStateDeviationFrenet(const AgentPtr& agent, con
   current_frenet_state.lat += frenet_deviation[1];
   
   // Convert back and set dynamic agent state 
-  const auto deviated_state = FrenetStateToDynamicState(current_frenet_state, lane_corridor->GetCenterLine());
+  const auto deviated_state = FrenetStateToDynamicState(
+    current_frenet_state, lane_corridor->GetCenterLine());
   agent->SetCurrentState(deviated_state);
 
   return;
