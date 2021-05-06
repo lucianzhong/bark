@@ -127,23 +127,23 @@ std::vector<std::vector<double>> GetPointsOnSphere(
   auto e_vec_val = ComputeEVs(cov);
   auto evec_mat = std::get<0>(e_vec_val).real();
   auto eval_mat = std::get<1>(e_vec_val).real();
-  std::cout << evec_mat << std::endl;
-  std::cout << eval_mat << std::endl;
+  // std::cout << evec_mat << std::endl;
+  // std::cout << eval_mat << std::endl;
 
   // NOTE: for the isolines
   // this gives us (x/a^2) + ... = C
   // https://www.visiondummy.com/2014/04/draw-error-ellipse-representing-covariance-matrix/
   // https://people.richland.edu/james/lecture/m170/tbl-chi.html
   // degree of freedom is size - 1
-  boost::math::chi_squared mydist(eval_mat.size() - 1);
+  boost::math::chi_squared mydist(eval_mat.size()-1);
   auto C = quantile(mydist, p_iso);
-  // std::cout << "dimension: " << eval_mat.size() << ", ucv: " << ucv << std::endl;
+  std::cout << "C = " << C << std::endl;
 
   std::vector<double> coeffs;
   for (int i = 0; i < eval_mat.size(); i++) {
     // scaled EVs
     // see: https://www.michaelchughes.com/blog/2013/01/why-contours-for-multivariate-gaussian-are-elliptical/
-    double coeff = C/sqrt(eval_mat(i));
+    double coeff = sqrt(C/eval_mat(i));
     coeffs.push_back(coeff);
   }
 
