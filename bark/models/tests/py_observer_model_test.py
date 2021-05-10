@@ -96,14 +96,24 @@ class PyObserverModelTests(unittest.TestCase):
     # https://stats.stackexchange.com/questions/361017/proper-way-of-estimating-the-covariance-error-ellipse-in-2d
     # https://stackoverflow.com/questions/12301071/multidimensional-confidence-intervals/39749274#39749274
     # 500.5886, 400.6111, 400.6111, 500.7801
-    cov = np.array([
-      [500.5886, 400.6111],
-      [400.6111, 500.7801]])
-    perm_angles = GetAllPermutatedAngles([.3])
-    pts = GetPointsOnSphere(cov, perm_angles, .95)
-    pts = np.array(pts)
+    # 1.68165 -0.793713;-0.793713 0.388516
     fig = plt.figure()
-    plt.plot(pts[:, 0], pts[:, 1], "r*")
+    # for p in np.arange(0, 0.9, .1):
+    p = 0.95
+    cov = np.array([
+      [2., 0.],
+      [0., 4.]])
+    perm_angles = GetAllPermutatedAngles([.3])
+    pts = GetPointsOnSphere(cov, perm_angles, p)
+    pts = np.array(pts)
+    
+    ellipsis_eq = lambda x,y : x**2/2**2 + y**2/4**2
+    for pt in pts:
+      print("Value", ellipsis_eq(pt[0], pt[1]))
+    
+    pts = np.vstack((pts, pts[0,:]))
+    plt.plot(pts[:, 0], pts[:, 1])
+    plt.axis("equal")
     plt.show()
 
     
