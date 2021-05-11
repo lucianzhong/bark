@@ -107,7 +107,8 @@ class PyObserverModelTests(unittest.TestCase):
     pts = GetPointsOnSphere(cov, perm_angles, p)
     pts = np.array(pts)
     
-    ellipsis_eq = lambda x,y : x**2/2**2 + y**2/4**2
+    C = 5.99146
+    ellipsis_eq = lambda x,y : x**2/(C*2) + y**2/(C*4)
     for pt in pts:
       print("Value", ellipsis_eq(pt[0], pt[1]))
     

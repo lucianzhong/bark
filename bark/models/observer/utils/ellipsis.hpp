@@ -145,7 +145,7 @@ std::vector<std::vector<double>> GetPointsOnSphere(
     // scaled EVs
     // see: https://www.michaelchughes.com/blog/2013/01/why-contours-for-multivariate-gaussian-are-elliptical/
     // coeff a,b,c..
-    double coeff = C/eval_mat(i);
+    double coeff = sqrt(C*eval_mat(i));
     coeffs.push_back(coeff);
   }
 
