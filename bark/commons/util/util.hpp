@@ -15,6 +15,21 @@
 #include <stdexcept>  // std::logic_error
 #include "bark/commons/util/operators.hpp"
 
+template< class T>
+void MoveAppend(std::vector<T>& src, std::vector<T>& dst) 
+{
+    if (dst.empty())
+    {
+        dst = std::move(src);
+    }
+    else
+    {
+        dst.reserve(dst.size() + src.size());
+        std::move(std::begin(src), std::end(src), std::back_inserter(dst));
+        src.clear();
+    }
+}
+
 namespace bark {
 namespace commons {
 

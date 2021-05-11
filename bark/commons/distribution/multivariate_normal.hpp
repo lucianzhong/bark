@@ -54,6 +54,8 @@ class MultivariateDistribution : public Distribution {
     generator_.seed(seed_);
   }
 
+  Eigen::MatrixXd GetCovariance() const { return covariance_; }
+
  private:
   RandomSeed seed_;
   std::mt19937 generator_;

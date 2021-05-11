@@ -53,6 +53,10 @@ class ObserverModelParametric : public ObserverModel {
   virtual ObservedWorld Observe(
     const WorldPtr& world, const AgentId& agent_id) override;
 
+  DistributionPtr GetEgoStateDeviationDist() const { return ego_state_deviation_dist_; }
+
+  DistributionPtr GetOthersStateDeviationDist() const { return others_state_deviation_dist_; }
+
  private:
   void AddStateDeviationFrenet(const AgentPtr& agent,
                          const DistributionPtr& multi_dim_distribution,
