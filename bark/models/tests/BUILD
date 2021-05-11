@@ -194,6 +194,7 @@ cc_test(
         "//bark/models/behavior/behavior_safety:behavior_safety",
         "//bark/models/behavior/behavior_rss:behavior_rss",
         "//bark/models/behavior/behavior_simplex:behavior_simplex_sampling",
+        "//bark/models/behavior/behavior_simplex:behavior_simplex_probabilistic_envelope",
         "//bark/models/execution/interpolation:interpolation",
         "//bark/world/tests:make_test_world",
         "//bark/world/evaluation/rss:evaluator_rss",

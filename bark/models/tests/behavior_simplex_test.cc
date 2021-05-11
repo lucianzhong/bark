@@ -11,7 +11,7 @@
 
 #include "bark/commons/params/setter_params.hpp"
 #include "bark/models/behavior/behavior_rss/behavior_rss.hpp"
-#include "bark/models/behavior/behavior_simplex/behavior_simplex_sampling.hpp"
+#include "bark/models/behavior/behavior_simplex/behavior_simplex_probabilistic_envelope.hpp"
 #include "bark/models/behavior/behavior_safety/behavior_safety.hpp"
 #include "bark/models/behavior/idm/idm_classic.hpp"
 #include "bark/models/behavior/idm/idm_lane_tracking.hpp"
@@ -48,26 +48,11 @@ using namespace bark::models::execution;
 using namespace bark::models::behavior;
 using namespace bark::world::map;
 
-class DummySimplexEvaluator : public EvaluatorCollisionEgoAgent {
-  // return false if unsafe
- public:
-  DummySimplexEvaluator(const AgentId& agent_id)
-      : EvaluatorCollisionEgoAgent(agent_id) {}
-  virtual EvaluationReturn Evaluate(const World& world) {
-    return std::optional<bool>{
-      boost::get<bool>(EvaluatorCollisionEgoAgent::Evaluate(world))};
-  }
-  virtual EvaluationReturn Evaluate(const ObservedWorld& observed_world) {
-    return std::optional<bool>{
-      boost::get<bool>(EvaluatorCollisionEgoAgent::Evaluate(observed_world))};
-  }
-};
-
-TEST(behavior_simplex_sampling, violation_threshold) {
+#ifdef RSS
+std::pair<Probability, EnvelopeProbabilityPair> CalculateEnvelopeAndExpectedViolation(double x_standard_deviation, double violation_threshold) {
   auto params = std::make_shared<SetterParams>();
-  double SAFETY_THRESHOLD = 0.1;
 
-  float ego_velocity = 0.0, rel_distance = 0.5, velocity_difference = 0.0;
+  float ego_velocity = 0.0, rel_distance = 15.0, velocity_difference = 0.0;
   float time_step = 0.2;
 
   WorldPtr world =
@@ -76,48 +61,73 @@ TEST(behavior_simplex_sampling, violation_threshold) {
   //2) Set observation uncertainty in x-direction only (test world aligned along x-axis) 
   params->SetListFloat("ObserverModelParametric::EgoStateDeviationDist::Mean", {0, 0});
   params->SetListListFloat("ObserverModelParametric::EgoStateDeviationDist::Covariance",
-                             {{0.00001, 0.0}, 
-                              {0.0, 0.000001}}); // no covariance for ego agent
+                              {{0.0, 0.0, 0.0, 0.0}, 
+                              {0.0, 0.0, 0.0, 0.0},
+                              {0.0, 0.0, 0.0, 0.0},
+                              {0.0, 0.0, 0.0, 0.0}}); // no covariance for ego agent
 
   params->SetListFloat("ObserverModelParametric::OtherStateDeviationDist::Mean", {0, 0});
   params->SetListListFloat("ObserverModelParametric::OtherStateDeviationDist::Covariance",
-                             {{rel_distance, 0.0}, 
-                              {0.0, 0.000001}}); // only covariance for other agents along x-directions
+                              {{x_standard_deviation, 0.0, 0.0, 0.0}, 
+                              {0.0, 0.0, 0.0, 0.0},
+                              {0.0, 0.0, 0.0, 0.0},
+                              {0.0, 0.0, 0.0, 0.0}}); // only covariance for other agents along x-directions
 
   auto observer_model_parametric= std::make_shared<ObserverModelParametric>(params);
   world->SetObserverModel(observer_model_parametric);
 
-  params->SetReal("BehaviorSimplexSampling::ViolationThreshold", SAFETY_THRESHOLD);
-  params->SetInt("BehaviorSimplexSampling::NumSamples", 1000);
+  params->SetReal("BehaviorSimplexSampling::ViolationThreshold", violation_threshold);
   
   //3) Create behavior and plan
-  auto behavior_simplex = BehaviorSimplexSampling(params);
-
   auto ego_agent = world->GetAgents().begin()->second;
   std::cout << ego_agent->GetCurrentState() << std::endl;
-  std::shared_ptr<BehaviorSimplexSampling> behavior_simplex_sampling =
-      std::make_shared<BehaviorSimplexSampling>(params);
+  std::shared_ptr<BehaviorSimplexProbabilisticEnvelope> behavior_simplex_probabilistic_envelope =
+      std::make_shared<BehaviorSimplexProbabilisticEnvelope>(params);
+  auto eval_rss = std::make_shared<EvaluatorRSS>();
+  behavior_simplex_probabilistic_envelope->SetEvaluator(eval_rss);
 
-  //4) Tracking of average triggering of safety maneuver should correspond to chosen safety threshold
-  std::shared_ptr<DummySimplexEvaluator> coll_eval =
-      std::make_shared<DummySimplexEvaluator>(world->GetAgents().begin()->first);
-  behavior_simplex_sampling->SetEvaluator(coll_eval);
+  auto observed_world = observer_model_parametric->Observe(world, ego_agent->GetAgentId());
+  VLOG(3) << "Other state:" << std::next(observed_world.GetAgents().begin())->second->GetCurrentState() << 
+              "Ego state" << observed_world.GetEgoAgent()->GetCurrentState();
+  auto plan_result = behavior_simplex_probabilistic_envelope->Plan(time_step, observed_world);
+  const auto probabilistic_envelope = behavior_simplex_probabilistic_envelope->GetCurrentProbabilisticEnvelope();
+  const auto expected_violation = behavior_simplex_probabilistic_envelope->GetCurrentExpectedSafetyViolation();
 
-  uint max_samples = 1000;
-  int num_safety_maneuvers = 0;
-  for(int i = 0; i < max_samples; ++i) {
-      auto observed_world = observer_model_parametric->Observe(world, ego_agent->GetAgentId());
-      VLOG(3) << "Other state:" << std::next(observed_world.GetAgents().begin())->second->GetCurrentState() << 
-                 "Ego state" << observed_world.GetEgoAgent()->GetCurrentState();
-      auto plan_result = behavior_simplex_sampling->Plan(time_step, observed_world);
-    if(behavior_simplex_sampling->GetBehaviorRssStatus() == BehaviorRSSConformantStatus::SAFETY_BEHAVIOR) {
-        num_safety_maneuvers++;
-    }
-  }
-#ifdef RSS
-  EXPECT_NEAR(double(num_safety_maneuvers)/double(max_samples), SAFETY_THRESHOLD, 0.05);
-#endif
+  return std::pair(expected_violation, probabilistic_envelope);
 }
+
+
+TEST(behavior_simplex_probabilitic_envelope, increase_standard_deviation) {
+  // Calculate probabilistic envelope for different standard deviations to
+  // qualitatively check if larger standard deviations increases expected
+  // violation risk and decreases envelope size
+  Probability expected_violations1;
+  EnvelopeProbabilityPair envelope_probability1;
+  std::tie(expected_violations1, envelope_probability1) = CalculateEnvelopeAndExpectedViolation(0.1, 0.1);
+
+  Probability expected_violations2;
+  EnvelopeProbabilityPair envelope_probability2;
+  std::tie(expected_violations2, envelope_probability2) = CalculateEnvelopeAndExpectedViolation(0.2, 0.1);
+
+  Probability expected_violations3;
+  EnvelopeProbabilityPair envelope_probability3;
+  std::tie(expected_violations3, envelope_probability3) = CalculateEnvelopeAndExpectedViolation(0.4, 0.1);
+
+  Probability expected_violations4;
+  EnvelopeProbabilityPair envelope_probability4;
+  std::tie(expected_violations4, envelope_probability4) = CalculateEnvelopeAndExpectedViolation(0.8, 0.1);
+
+ // EXPECT_TRUE(expected_violations1 < expected_violations2);
+ // EXPECT_TRUE(expected_violations2 < expected_violations3);
+//  EXPECT_TRUE(expected_violations3 < expected_violations4);
+
+ // EXPECT_TRUE(envelope1 > envelope2);
+ // EXPECT_TRUE(envelope2 > envelope3);
+ // EXPECT_TRUE(envelope3 > envelope4);
+}
+
+
+#endif
 
 int main(int argc, char** argv) {
   FLAGS_v = 3;

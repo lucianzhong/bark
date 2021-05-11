@@ -165,7 +165,7 @@ Trajectory BehaviorSimplexProbabilisticEnvelope::Plan(
   }
 
   // Calculate probablistic envelope and expected violation
-  EnvelopeProbabilityPair probabilistic_envelope_pair =
+  EnvelopeProbabilityPair current_probabilistic_envelope_ =
            CalculateProbabilisticEnvelope(envelopes, violation_threshold_, iso_probability_discretizations_); 
   current_expected_safety_violation_ = CalculateExpectedViolation(violations, iso_probability_discretizations_);
   
@@ -179,7 +179,7 @@ Trajectory BehaviorSimplexProbabilisticEnvelope::Plan(
     behavior_rss_status_ = BehaviorRSSConformantStatus::SAFETY_BEHAVIOR;
   } else {
     #ifdef RSS
-    ApplyRestrictionsToModel(probabilistic_envelope_pair.first,
+    ApplyRestrictionsToModel(current_probabilistic_envelope_.first,
                                nominal_behavior_model_);
     #endif
     nominal_behavior_model_->Plan(min_planning_time, observed_world);

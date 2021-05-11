@@ -72,9 +72,10 @@ class BehaviorSimplexProbabilisticEnvelope : public BehaviorRSSConformant {
   explicit BehaviorSimplexProbabilisticEnvelope(const commons::ParamsPtr& params)
       : BehaviorRSSConformant(params),
         iso_probability_discretizations_(params->GetListFloat("BehaviorSimplexProbabilisticEnvelope::IsoProbalityDiscretizations",
-                                                         "List with iso probaiblities", {0.1, 0.2, 0.4, 0.8})),
+                                                         "List with iso probaiblities", {0.1, 0.2, 0.4, 0.8, 1.0})),
         angular_discretization_(params->GetListFloat("BehaviorSimplexProbabilisticEnvelope::AngularDiscretization", 
                                             "List with delta angles for sampling iso lines, one less than covariance dimension", {0.1, 0.1, 0.1})),
+        current_probabilistic_envelope_(),
         violation_threshold_(params->GetReal("BehaviorSimplexProbabilisticEnvelope::ViolationThreshold", "Maximum allowed probability"
         " of violating RSS in current or next state", 0.01)) {}
 
@@ -88,10 +89,13 @@ class BehaviorSimplexProbabilisticEnvelope : public BehaviorRSSConformant {
     //double current_expected_safety_violation_;
   double GetCurrentExpectedSafetyViolation() const { return current_expected_safety_violation_;}
 
+  EnvelopeProbabilityPair GetCurrentProbabilisticEnvelope() const { return current_probabilistic_envelope_; }
+
  private:
   std::vector<double>  iso_probability_discretizations_;
   std::vector<double>  angular_discretization_;
   double current_expected_safety_violation_;
+  EnvelopeProbabilityPair current_probabilistic_envelope_;
   double violation_threshold_;
 };
 

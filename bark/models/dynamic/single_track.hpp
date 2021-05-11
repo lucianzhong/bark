@@ -28,14 +28,14 @@ struct AccelerationLimits {
   friend bool operator<(const AccelerationLimits& l1, const AccelerationLimits& l2);
 };
 
-bool operator<=(const AccelerationLimits& l1, const AccelerationLimits& l2) {
+inline bool operator<=(const AccelerationLimits& l1, const AccelerationLimits& l2) {
   return l1.lat_acc_max <= l2.lat_acc_max && // Smaller lateral accelerations 
          l1.lat_acc_min >= l2.lat_acc_min &&  // Smaller lateral deccelerations
          l1.lon_acc_max <= l2.lon_acc_max && // Smaller longitudinal accelerations 
          l1.lon_acc_min >= l2.lon_acc_min;  // Smaller longitudinal deccelerations
 }
 
-bool operator<(const AccelerationLimits& l1, const AccelerationLimits& l2) {
+inline bool operator<(const AccelerationLimits& l1, const AccelerationLimits& l2) {
   return l1.lat_acc_max < l2.lat_acc_max && // Smaller lateral accelerations 
          l1.lat_acc_min > l2.lat_acc_min &&  // Smaller lateral deccelerations
          l1.lon_acc_max < l2.lon_acc_max && // Smaller longitudinal accelerations 
