@@ -31,14 +31,13 @@ using bark::world::map::LaneCorridor;
 using bark::world::map::LaneCorridorPtr;
 using dynamic::Trajectory;
 using world::ObservedWorld;
+using world::World;
 using world::evaluation::BaseEvaluator;
 using world::evaluation::ComputeSafetyPolygon;
 using world::evaluation::SafetyPolygon;
 using world::objects::AgentId;
+using world::objects::AgentPtr;
 using bark::commons::Probability;
-#ifdef RSS
-using bark::world::evaluation::EvaluatorRSS;
-#endif
 
 typedef AccelerationLimits Envelope;
 typedef std::pair<Envelope, Probability> EnvelopeProbabilityPair;
@@ -46,28 +45,40 @@ typedef std::vector<EnvelopeProbabilityPair> EnvelopeProbabilityList;
 typedef std::pair<bool, Probability> ViolationProbabilityPair;
 typedef std::vector<ViolationProbabilityPair> ViolationProbabilityList;
 
-Eigen::MatrixXd GetObserverCovariance(const ObservedWord& observed_world);
+Eigen::MatrixXd GetObserverCovariance(const ObservedWorld& observed_world);
 
 std::pair<EnvelopeProbabilityList, ViolationProbabilityList> 
-                                          CalculateAgentsWorstCaseEnvelopes(const AgentPtr& ego_agent,
+                                          CalculateAgentsWorstCaseEnvelopes(const ObservedWorld& ego_only_world,
                                                                             const AgentPtr& other_agent, 
                                                                             const std::vector<double> iso_discretizations,
-                                                                            const Eigen::MatrixXd& observer_covariance);
+                                                                            const Eigen::MatrixXd& observer_covariance,
+                                                                            const std::vector<double> angular_discretization,
+                                                                            std::shared_ptr<BaseEvaluator>& evaluator);
 
-EnvelopeProbabilityPair CalculateProbabilisticEnvelope(const EnvelopeProbabilityList& envelope_probability_list, const Probability& violation_threshold); 
+std::pair<bool, Envelope> GetViolatedAndEnvelope(const ObservedWorld& ego_only_world,
+                                                const AgentPtr& other_agent,
+                                                const std::shared_ptr<BaseEvaluator>& evaluator);
 
-Probability CalculateExpectedViolation(const ViolationProbabilityList& violation_probability_list);
+void SortEnvelopes(EnvelopeProbabilityList& envelope_probability_list);
+
+EnvelopeProbabilityPair CalculateProbabilisticEnvelope(EnvelopeProbabilityList& envelope_probability_list, const Probability& violation_threshold,
+                                                      const std::vector<double> iso_discretizations); 
+
+Probability CalculateExpectedViolation(const ViolationProbabilityList& violation_probability_list, const std::vector<double> iso_discretizations);
 
 
 class BehaviorSimplexProbabilisticEnvelope : public BehaviorRSSConformant {
  public:
   explicit BehaviorSimplexProbabilisticEnvelope(const commons::ParamsPtr& params)
       : BehaviorRSSConformant(params),
-        iso_probability_discretizations_(params->GetListFloat("BehaviorSimplexProbabilisticEnvelope::IsoProbalityDiscretizations", "List with iso probaiblities", {0.1, 0.2, 0.4, 0.8})),
+        iso_probability_discretizations_(params->GetListFloat("BehaviorSimplexProbabilisticEnvelope::IsoProbalityDiscretizations",
+                                                         "List with iso probaiblities", {0.1, 0.2, 0.4, 0.8})),
+        angular_discretization_(params->GetListFloat("BehaviorSimplexProbabilisticEnvelope::AngularDiscretization", 
+                                            "List with delta angles for sampling iso lines, one less than covariance dimension", {0.1, 0.1, 0.1})),
         violation_threshold_(params->GetReal("BehaviorSimplexProbabilisticEnvelope::ViolationThreshold", "Maximum allowed probability"
         " of violating RSS in current or next state", 0.01)) {}
 
-  virtual ~BehaviorSimplexSampling() {}
+  virtual ~BehaviorSimplexProbabilisticEnvelope() {}
 
   Trajectory Plan(double min_planning_time,
                   const ObservedWorld& observed_world);
@@ -79,13 +90,14 @@ class BehaviorSimplexProbabilisticEnvelope : public BehaviorRSSConformant {
 
  private:
   std::vector<double>  iso_probability_discretizations_;
+  std::vector<double>  angular_discretization_;
   double current_expected_safety_violation_;
   double violation_threshold_;
 };
 
-inline std::shared_ptr<BehaviorModel> BehaviorSimplexSampling::Clone() const {
-  std::shared_ptr<BehaviorSimplexSampling> model_ptr =
-      std::make_shared<BehaviorSimplexSampling>(*this);
+inline std::shared_ptr<BehaviorModel> BehaviorSimplexProbabilisticEnvelope::Clone() const {
+  std::shared_ptr<BehaviorSimplexProbabilisticEnvelope> model_ptr =
+      std::make_shared<BehaviorSimplexProbabilisticEnvelope>(*this);
   return model_ptr;
 }
 

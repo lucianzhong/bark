@@ -54,6 +54,16 @@ auto as_integer(Enumeration const value) {
   return static_cast<typename std::underlying_type<Enumeration>::type>(value);
 }
 
+#ifdef RSS
+std::pair<AccelerationLimits, AccelerationLimits> ConvertRestrictions(
+    double delta_time,
+    const ::ad::rss::state::AccelerationRestriction& rss_rest,
+    const ObservedWorld& observed_world,
+    bool switch_off_lat_limits_on_road_x,
+    Polygon roadx_polygon,
+    double rss_vlat_threshold);
+#endif
+
 class BehaviorRSSConformant : public BehaviorModel {
  public:
   explicit BehaviorRSSConformant(const commons::ParamsPtr& params)
@@ -151,11 +161,6 @@ class BehaviorRSSConformant : public BehaviorModel {
   }
 
 #ifdef RSS
-  void ConvertRestrictions(
-      double min_planning_time,
-      const ::ad::rss::state::AccelerationRestriction& acc_restrictions,
-      const ObservedWorld& observed_world);
-
   void ApplyRestrictionsToModel(const AccelerationLimits& limits,
                                 std::shared_ptr<BehaviorModel> model);
 

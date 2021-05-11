@@ -16,6 +16,7 @@
 #include "bark/world/observed_world.hpp"
 #include "bark/models/observer/observer_model_parametric.hpp"
 #include "bark/commons/distribution/multivariate_normal.hpp"
+#include "bark/models/observer/utils/ellipsis.hpp"
 
 namespace bark {
 namespace models {
@@ -23,11 +24,20 @@ namespace behavior {
 
 using bark::models::observer::ObserverModelParametric;
 using bark::commons::MultivariateDistribution;
+using bark::models::observer::utils::ObserveAtIsoLine;
+using bark::models::dynamic::AccelerationLimits;
+using world::ObservedWorld;
+using world::World;
+using dynamic::Trajectory;
+using bark::geometry::Polygon;
+using world::evaluation::BaseEvaluator;
+using world::objects::AgentId;
+using world::objects::AgentPtr;
+using bark::commons::Probability;
 
-
-Eigen::MatrixXd GetObserverCovariance(const ObservedWord& observed_world) {
+Eigen::MatrixXd GetObserverCovariance(const World& world) {
   const auto& observer_parametric = std::dynamic_pointer_cast<ObserverModelParametric>(
-                                                        observed_world.GetObserverModel());
+                                                        world.GetObserverModel());
   BARK_EXPECT_TRUE(bool(observer_parametric));
   const auto& multivariate_dist = std::dynamic_pointer_cast<MultivariateDistribution>(
                   observer_parametric->GetOthersStateDeviationDist());
@@ -35,19 +45,100 @@ Eigen::MatrixXd GetObserverCovariance(const ObservedWord& observed_world) {
   return multivariate_dist->GetCovariance();
 }
 
-std::pair<EnvelopeProbabilityList, ViolationProbabilityList> 
-                                          CalculateAgentsWorstCaseEnvelopes(const AgentPtr& ego_agent,
-                                                                            const AgentPtr& other_agent, 
-                                                                            const std::vector<double> iso_discretizations,
-                                                                            const Eigen::MatrixXd& observer_covariance) {
-  
+void SortEnvelopes(EnvelopeProbabilityList& envelope_probability_list) {
+  std::sort(envelope_probability_list.begin(), envelope_probability_list.end(), [](
+          const EnvelopeProbabilityPair ep1, const EnvelopeProbabilityPair& ep2){
+            return ep1.first < ep2.first;
+  });
 }
 
-EnvelopeProbabilityPair CalculateProbabilisticEnvelope(const EnvelopeProbabilityList& envelope_probability_list, const Probability& violation_threshold); 
+std::pair<EnvelopeProbabilityList, ViolationProbabilityList> 
+                                          CalculateAgentsWorstCaseEnvelopes(const ObservedWorld& ego_only_world,
+                                                                            const AgentPtr& other_agent, 
+                                                                            const std::vector<double> iso_discretizations,
+                                                                            const Eigen::MatrixXd& observer_covariance,
+                                                                            const std::vector<double> angular_discretization,
+                                                                            std::shared_ptr<BaseEvaluator>& evaluator) {
+  EnvelopeProbabilityList agent_envelopes;
+  ViolationProbabilityList agent_violations;
+  for (std::size_t iso_prob_idx; iso_prob_idx < iso_discretizations.size(); ++iso_prob_idx) {
+    // Create agent variations at a certain iso line
+    const auto& other_agent_variations = ObserveAtIsoLine(other_agent, angular_discretization,
+                                                        observer_covariance, iso_discretizations.at(iso_prob_idx));
+    EnvelopeProbabilityList agent_iso_envelopes;
+    bool agent_violates_at_iso = false;
+    // Create all envelopes for these agent variations
+    for (const auto&  other_varied_agent : other_agent_variations) {
+      bool agent_violated;
+      Envelope agent_envelope;
+      std::tie(agent_violated, agent_envelope) = GetViolatedAndEnvelope(ego_only_world, other_varied_agent, evaluator);
+      agent_iso_envelopes.push_back(EnvelopeProbabilityPair(agent_envelope, iso_prob_idx));
+      agent_violates_at_iso = agent_violates_at_iso || agent_violated;
+    }
+    // Choose only worst-case envelope at this iso line
+    SortEnvelopes(agent_iso_envelopes);
+    agent_envelopes.push_back(agent_iso_envelopes.at(0));
+    if(agent_violates_at_iso) {
+      agent_violations.push_back(ViolationProbabilityPair(true, iso_prob_idx));
+    }
+  }
+  return std::make_pair(agent_envelopes, agent_violations);
+}
 
-Probability CalculateExpectedViolation(const ViolationProbabilityList& violation_probability_list);
+std::pair<bool, Envelope> GetViolatedAndEnvelope(const ObservedWorld& ego_only_world,
+                                                const AgentPtr& other_agent,
+                                                const std::shared_ptr<BaseEvaluator>& evaluator,
+                                                const double min_planning_time) {
+  #ifdef RSS
+  auto rss_evaluator = std::dynamic_pointer_cast<EvaluatorRSS>(evaluator);
+  if (rss_evaluator) {
+    const auto ego_world_cloned = std::dynamic_pointer_cast<ObservedWorld>(ego_only_world.Clone());
+    ego_world_cloned->AddAgent(other_agent);
+    auto eval_res = boost::get<std::optional<bool>>(rss_evaluator->Evaluate(*ego_world_cloned));
+    const auto& rss_response = rss_evaluator->GetRSSProperResponse();
+    const auto& acc_restrictions_rss = rss_response.accelerationRestrictions;
+    VLOG(4) << "RSS Response: " << rss_response;
+    const auto& acc_restrictions = ConvertRestrictions(min_planning_time, acc_restrictions_rss, *ego_world_cloned, 
+                      false, Polygon(), 0.1);
+    return std::make_pair(*eval_res, acc_restrictions.second);
+  }
+  #endif
+  return std::pair(false, Envelope());
+}
 
+EnvelopeProbabilityPair CalculateProbabilisticEnvelope(EnvelopeProbabilityList& envelope_probability_list, const Probability& violation_threshold,
+                                                      const std::vector<double> iso_discretizations) {
+  
+  auto GetProbabilityRange = [&](std::size_t iso_prob_idx) {
+    return iso_prob_idx == 0 ? iso_discretizations.at(0) : iso_discretizations.at(iso_prob_idx) - iso_discretizations.at(iso_prob_idx-1);
+  };
 
+  SortEnvelopes(envelope_probability_list);
+  Envelope probabilistic_envelope = envelope_probability_list.at(0).first;
+  Probability current_envelope_risk = GetProbabilityRange(envelope_probability_list.at(0).second);
+  for(auto env_prob_it = std::next(envelope_probability_list.begin());
+         env_prob_it != envelope_probability_list.end(); ++env_prob_it ) {
+         const auto iso_prob_idx = env_prob_it->second;
+         Probability probability_range = GetProbabilityRange(iso_prob_idx);
+         if(current_envelope_risk + probability_range > violation_threshold) {
+           break;
+         }
+         current_envelope_risk = current_envelope_risk + probability_range;
+         probabilistic_envelope = env_prob_it->first;
+  }
+  return EnvelopeProbabilityPair(probabilistic_envelope, current_envelope_risk);
+}
+
+Probability CalculateExpectedViolation(const ViolationProbabilityList& violation_probability_list, const std::vector<double> iso_discretizations) {
+  auto GetProbabilityRange = [&](std::size_t iso_prob_idx) {
+    return iso_prob_idx == 0 ? iso_discretizations.at(0) : iso_discretizations.at(iso_prob_idx) - iso_discretizations.at(iso_prob_idx-1);
+  };
+  Probability violation_risk = 0.0;
+  for(const auto& violation_probability : violation_probability_list) {
+    violation_risk += GetProbabilityRange(violation_probability.second);
+  }
+  return violation_risk;
+}
 
 
 
@@ -57,21 +148,26 @@ Trajectory BehaviorSimplexProbabilisticEnvelope::Plan(
 
   // Collect Worst-Case Envelopes over all other agents
   const auto ego_agent = observed_world.GetEgoAgent();
+  auto ego_only_world = std::dynamic_pointer_cast<ObservedWorld>(observed_world.Clone());
+  ego_only_world->ClearAgents();
+  ego_only_world->AddAgent(ego_agent);
   const auto observer_covariance = GetObserverCovariance(observed_world);
   EnvelopeProbabilityList envelopes;
   ViolationProbabilityList violations;
   for (const auto& other_agent : observed_world.GetOtherAgents()) {
-    envelopes_violations = CalculateAgentsWorstCaseEnvelopes(ego_agent, other_agent, iso_probability_discretizations_, observer_covariance);
-    const auto& agent_envelopes = std::get<0>(envelopes_violations);
-    const auto& agent_violations = std::get<1>(envelopes_violations);
+    auto envelopes_violations = CalculateAgentsWorstCaseEnvelopes(*ego_only_world, other_agent.second,
+                                                     iso_probability_discretizations_, observer_covariance,
+                                                      angular_discretization_, rss_evaluator_);
+    auto& agent_envelopes = std::get<0>(envelopes_violations);
+    auto& agent_violations = std::get<1>(envelopes_violations);
     MoveAppend(agent_envelopes, envelopes);
     MoveAppend(agent_violations, violations);
   }
 
   // Calculate probablistic envelope and expected violation
   EnvelopeProbabilityPair probabilistic_envelope_pair =
-           CalculateProbabilisticEnvelope(envelopes, violation_threshold_); 
-  current_expected_safety_violation_ = CalculateExpectedViolation(agent_violations);
+           CalculateProbabilisticEnvelope(envelopes, violation_threshold_, iso_probability_discretizations_); 
+  current_expected_safety_violation_ = CalculateExpectedViolation(violations, iso_probability_discretizations_);
   
   // Handling switching condition and envelope restriction 
   Action last_action;
@@ -82,6 +178,10 @@ Trajectory BehaviorSimplexProbabilisticEnvelope::Plan(
     last_traj = behavior_safety_model_->GetLastTrajectory();
     behavior_rss_status_ = BehaviorRSSConformantStatus::SAFETY_BEHAVIOR;
   } else {
+    #ifdef RSS
+    ApplyRestrictionsToModel(probabilistic_envelope_pair.first,
+                               nominal_behavior_model_);
+    #endif
     nominal_behavior_model_->Plan(min_planning_time, observed_world);
     last_action = nominal_behavior_model_->GetLastAction();
     last_traj = nominal_behavior_model_->GetLastTrajectory();
