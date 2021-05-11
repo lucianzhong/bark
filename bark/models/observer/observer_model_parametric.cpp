@@ -23,14 +23,16 @@ using namespace bark::commons;
 
 ObserverModelParametric::ObserverModelParametric(bark::commons::ParamsPtr params) :
   ObserverModel(params),
-  ego_state_deviation_dist_(params->GetDistribution("ObserverModelParametric::EgoStateDeviationDist",
-                                  "From what distribution is the ego frenet state deviations "
-                                  "sampled, must have dimension = 5",
-                                  "MultivariateDistribution")),
-  others_state_deviation_dist_(params->GetDistribution("ObserverModelParametric::OtherStateDeviationDist",
-                                  "From what distribution is the others frenet state deviation"
-                                  "sampled, must have dimension = 5",
-                                  "MultivariateDistribution")) {}
+  ego_state_deviation_dist_(
+    params->GetDistribution("ObserverModelParametric::EgoStateDeviationDist",
+                            "From what distribution is the ego frenet state deviations "
+                            "sampled, must have dimension = 5",
+                            "MultivariateDistribution")),
+  others_state_deviation_dist_(
+    params->GetDistribution("ObserverModelParametric::OtherStateDeviationDist",
+                            "From what distribution is the others frenet state deviation"
+                            "sampled, must have dimension = 5",
+                            "MultivariateDistribution")) {}
 
 ObserverModelParametric::ObserverModelParametric(const ObserverModelParametric& observer_model) :
       ObserverModel(observer_model.GetParams()),

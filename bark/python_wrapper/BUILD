@@ -44,6 +44,7 @@ cc_binary(
     "//bark/models/behavior/behavior_simplex:behavior_simplex_sampling",
     "//bark/models/observer:observer_model",
     "//bark/models/observer:observer_model_parametric",
+    "//bark/models/observer/utils:ellipsis",
     "//bark/runtime/viewer:viewer",
     "//bark/world:world",
     "//bark/world/renderer:renderer",

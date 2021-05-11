@@ -9,6 +9,7 @@
 #include "bark/models/observer/observer_model.hpp"
 #include "bark/models/observer/observer_model_none.hpp"
 #include "bark/models/observer/observer_model_parametric.hpp"
+#include "bark/models/observer/utils/ellipsis.hpp"
 #include "bark/world/tests/make_test_world.hpp"
 #include "bark/commons/params/setter_params.hpp"
 
@@ -21,9 +22,45 @@ using namespace bark::world::tests;
 using namespace bark::world;
 using namespace bark::models::dynamic;
 using namespace bark::models::observer;
+using namespace bark::models::observer::utils;
 using namespace bark::models::behavior;
 using namespace bark::world::tests;
 using namespace bark::models::execution;
+
+TEST(ellipsis, angle_generation) {
+  const std::vector<double> delta_theta{M_PI_4, M_PI_4};
+  std::vector<std::vector<double>> permutated_angles =
+    GetAllPermutatedAngles(delta_theta);
+  
+  for (auto angles : permutated_angles) {
+    std::cout << "Angle : ";
+    for (auto a : angles) {
+      std::cout << a << ", ";
+    }
+    std::cout << std::endl;
+  }
+
+}
+
+TEST(ellipsis, eigenvectors) {
+  // could be x, y, v
+  MatrixD cov(3, 3);
+  cov << 1., 0., 0.,
+         0., 1., 0.,
+         0., 0., 1.;
+
+  const std::vector<double> delta_theta{M_PI_4, M_PI_4};
+  std::vector<std::vector<double>> permutated_angles =
+    GetAllPermutatedAngles(delta_theta);
+
+  std::vector<std::vector<double>> pts_on_sphere = 
+    GetPointsOnSphere(cov, permutated_angles, 1.);
+
+  for (auto d : pts_on_sphere) { 
+    std::cout << "x: " << d[0] << ", y: " << d[1] << ", z: " << d[2] << std::endl;
+  }
+
+}
 
 TEST(observer_model_none, base_test) {
   using bark::models::observer::ObserverModelNone;
@@ -96,28 +133,53 @@ TEST(observer_model_parametric, position_deviation_test) {
   mean_deviation3.setZero();
 
   for (int i = 1; i <= num_samples; ++i) {
-    const auto observed_world = observer_parametric.Observe(world, agent2->GetAgentId());
-    const auto obs_state1 = observed_world.GetAgent(agent1->GetAgentId())->GetCurrentState();
-    const auto obs_state2 = observed_world.GetAgent(agent2->GetAgentId())->GetCurrentState();
-    const auto obs_state3 = observed_world.GetAgent(agent3->GetAgentId())->GetCurrentState();
+    const auto observed_world = observer_parametric.Observe(
+      world, agent2->GetAgentId());
+    const auto obs_state1 = observed_world.GetAgent(
+      agent1->GetAgentId())->GetCurrentState();
+    const auto obs_state2 = observed_world.GetAgent(
+      agent2->GetAgentId())->GetCurrentState();
+    const auto obs_state3 = observed_world.GetAgent(
+      agent3->GetAgentId())->GetCurrentState();
 
     // Frenet state is aligned along coordinate system, so no transformation required
-    mean_deviation1 = (mean_deviation1*double(i-1) + (obs_state1 - current_state_agent1).cwiseAbs())/double(i);
-    mean_deviation2 = (mean_deviation2*double(i-1) + (obs_state2 - current_state_agent2).cwiseAbs())/double(i);
-    mean_deviation3 = (mean_deviation3*double(i-1) + (obs_state3 - current_state_agent3).cwiseAbs())/double(i);
+    mean_deviation1 = (mean_deviation1*double(i-1) +
+      (obs_state1 - current_state_agent1).cwiseAbs())/double(i);
+    mean_deviation2 = (mean_deviation2*double(i-1) +
+      (obs_state2 - current_state_agent2).cwiseAbs())/double(i);
+    mean_deviation3 = (mean_deviation3*double(i-1) +
+      (obs_state3 - current_state_agent3).cwiseAbs())/double(i);
   }
 
   // Compare x
   auto index = static_cast<int>(StateDefinition::X_POSITION);
-  EXPECT_NEAR(mean_deviation1(index), params->GetListFloat("ObserverModelParametric::OtherStateDeviationDist::Mean", "", {}).at(0), 0.05);
-  EXPECT_NEAR(mean_deviation2(index), params->GetListFloat("ObserverModelParametric::EgoStateDeviationDist::Mean", "", {}).at(0), 0.05);
-  EXPECT_NEAR(mean_deviation3(index), params->GetListFloat("ObserverModelParametric::OtherStateDeviationDist::Mean", "", {}).at(0), 0.05);
+  EXPECT_NEAR(
+    mean_deviation1(index),
+    params->GetListFloat(
+      "ObserverModelParametric::OtherStateDeviationDist::Mean", "", {}).at(0), 0.05);
+  EXPECT_NEAR(
+    mean_deviation2(index),
+    params->GetListFloat(
+      "ObserverModelParametric::EgoStateDeviationDist::Mean", "", {}).at(0), 0.05);
+  EXPECT_NEAR(
+    mean_deviation3(index),
+    params->GetListFloat(
+      "ObserverModelParametric::OtherStateDeviationDist::Mean", "", {}).at(0), 0.05);
 
   // Compare y
   index = static_cast<int>(StateDefinition::Y_POSITION);
-  EXPECT_NEAR(mean_deviation1(index), params->GetListFloat("ObserverModelParametric::OtherStateDeviationDist::Mean", "", {}).at(1), 0.05);
-  EXPECT_NEAR(mean_deviation2(index), params->GetListFloat("ObserverModelParametric::EgoStateDeviationDist::Mean", "", {}).at(1), 0.05);
-  EXPECT_NEAR(mean_deviation3(index), params->GetListFloat("ObserverModelParametric::OtherStateDeviationDist::Mean", "", {}).at(1), 0.05);
+  EXPECT_NEAR(
+    mean_deviation1(index),
+    params->GetListFloat(
+      "ObserverModelParametric::OtherStateDeviationDist::Mean", "", {}).at(1), 0.05);
+  EXPECT_NEAR(
+    mean_deviation2(index),
+    params->GetListFloat(
+      "ObserverModelParametric::EgoStateDeviationDist::Mean", "", {}).at(1), 0.05);
+  EXPECT_NEAR(
+    mean_deviation3(index),
+    params->GetListFloat(
+      "ObserverModelParametric::OtherStateDeviationDist::Mean", "", {}).at(1), 0.05);
 }
 
 int main(int argc, char** argv) {
