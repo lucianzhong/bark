@@ -35,9 +35,9 @@ using world::objects::AgentId;
 using world::objects::AgentPtr;
 using bark::commons::Probability;
 
-Eigen::MatrixXd GetObserverCovariance(const World& world) {
+Eigen::MatrixXd GetObserverCovariance(const ObservedWorld& observed_world) {
   const auto& observer_parametric = std::dynamic_pointer_cast<ObserverModelParametric>(
-                                                        world.GetObserverModel());
+                                                        observed_world.GetObserverModel());
   BARK_EXPECT_TRUE(bool(observer_parametric));
   const auto& multivariate_dist = std::dynamic_pointer_cast<MultivariateDistribution>(
                   observer_parametric->GetOthersStateDeviationDist());
@@ -58,7 +58,8 @@ std::pair<EnvelopeProbabilityList, ViolationProbabilityList>
                                                                             const std::vector<double> iso_discretizations,
                                                                             const Eigen::MatrixXd& observer_covariance,
                                                                             const std::vector<double> angular_discretization,
-                                                                            std::shared_ptr<BaseEvaluator>& evaluator) {
+                                                                            std::shared_ptr<BaseEvaluator>& evaluator,
+                                                                            const double min_planning_time) {
   EnvelopeProbabilityList agent_envelopes;
   ViolationProbabilityList agent_violations;
   for (std::size_t iso_prob_idx; iso_prob_idx < iso_discretizations.size(); ++iso_prob_idx) {
@@ -71,7 +72,7 @@ std::pair<EnvelopeProbabilityList, ViolationProbabilityList>
     for (const auto&  other_varied_agent : other_agent_variations) {
       bool agent_violated;
       Envelope agent_envelope;
-      std::tie(agent_violated, agent_envelope) = GetViolatedAndEnvelope(ego_only_world, other_varied_agent, evaluator);
+      std::tie(agent_violated, agent_envelope) = GetViolatedAndEnvelope(ego_only_world, other_varied_agent, evaluator, min_planning_time);
       agent_iso_envelopes.push_back(EnvelopeProbabilityPair(agent_envelope, iso_prob_idx));
       agent_violates_at_iso = agent_violates_at_iso || agent_violated;
     }
@@ -157,7 +158,7 @@ Trajectory BehaviorSimplexProbabilisticEnvelope::Plan(
   for (const auto& other_agent : observed_world.GetOtherAgents()) {
     auto envelopes_violations = CalculateAgentsWorstCaseEnvelopes(*ego_only_world, other_agent.second,
                                                      iso_probability_discretizations_, observer_covariance,
-                                                      angular_discretization_, rss_evaluator_);
+                                                      angular_discretization_, rss_evaluator_, min_planning_time);
     auto& agent_envelopes = std::get<0>(envelopes_violations);
     auto& agent_violations = std::get<1>(envelopes_violations);
     MoveAppend(agent_envelopes, envelopes);

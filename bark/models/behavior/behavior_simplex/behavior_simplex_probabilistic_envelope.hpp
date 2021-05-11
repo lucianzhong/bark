@@ -53,11 +53,13 @@ std::pair<EnvelopeProbabilityList, ViolationProbabilityList>
                                                                             const std::vector<double> iso_discretizations,
                                                                             const Eigen::MatrixXd& observer_covariance,
                                                                             const std::vector<double> angular_discretization,
-                                                                            std::shared_ptr<BaseEvaluator>& evaluator);
+                                                                            std::shared_ptr<BaseEvaluator>& evaluator,
+                                                                            const double min_planning_time);
 
 std::pair<bool, Envelope> GetViolatedAndEnvelope(const ObservedWorld& ego_only_world,
                                                 const AgentPtr& other_agent,
-                                                const std::shared_ptr<BaseEvaluator>& evaluator);
+                                                const std::shared_ptr<BaseEvaluator>& evaluator,
+                                                const double min_planning_time);
 
 void SortEnvelopes(EnvelopeProbabilityList& envelope_probability_list);
 
