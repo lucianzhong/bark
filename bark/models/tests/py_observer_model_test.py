@@ -95,26 +95,29 @@ class PyObserverModelTests(unittest.TestCase):
   def test_2d_points_on_sphere(self):
     # https://stats.stackexchange.com/questions/361017/proper-way-of-estimating-the-covariance-error-ellipse-in-2d
     # https://stackoverflow.com/questions/12301071/multidimensional-confidence-intervals/39749274#39749274
-    # 500.5886, 400.6111, 400.6111, 500.7801
-    # 1.68165 -0.793713;-0.793713 0.388516
+
+    # NOTE: to "verify" the confidence ellipses the results of https://stackoverflow.com/questions/25718363/how-to-plot-bivariate-normal-distribution-with-expanding-ellipses
+    #       are "reproduced"
     fig = plt.figure()
-    # for p in np.arange(0, 0.9, .1):
-    p = 0.95
-    cov = np.array([
-      [2., 0.],
-      [0., 4.]])
-    perm_angles = GetAllPermutatedAngles([.3])
-    pts = GetPointsOnSphere(cov, perm_angles, p)
-    pts = np.array(pts)
-    
-    C = 5.99146
-    ellipsis_eq = lambda x,y : x**2/(C*2) + y**2/(C*4)
-    for pt in pts:
-      print("Value", ellipsis_eq(pt[0], pt[1]))
-    
-    pts = np.vstack((pts, pts[0,:]))
-    plt.plot(pts[:, 0], pts[:, 1])
-    plt.axis("equal")
+    for p in [.05, .25, .50, .75, .95]:
+      # p = 0.95
+      cov = np.array([
+        [9., 3.],
+        [3., 4.]])
+      perm_angles = GetAllPermutatedAngles([.3])
+      pts = GetPointsOnSphere(cov, perm_angles, p)
+      pts = np.array(pts)
+      
+      # C = 5.99146
+      # ellipsis_eq = lambda x,y : x**2/(C*2) + y**2/(C*4)
+      # for pt in pts:
+      #   print("Value", ellipsis_eq(pt[0], pt[1]))
+      
+      pts = np.vstack((pts, pts[0,:]))
+      plt.plot(pts[:, 0] + 1, pts[:, 1] + 2)
+      # plt.axis("equal")
+    plt.gca().set_xlim([])
+    plt.gca().set_ylim([])
     plt.show()
 
     

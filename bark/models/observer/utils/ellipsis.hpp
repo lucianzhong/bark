@@ -174,7 +174,7 @@ std::vector<std::vector<double>> GetPointsOnSphere(
     for (int i = 0; i < pts.size(); i++) {
       eigen_pts(i, 0) = pts[i];
     }
-    auto res = evec_mat.transpose()*eigen_pts;
+    auto res = evec_mat*eigen_pts;
     std::vector<double> rot_pts;
     for (int i = 0; i < pts.size(); i++) {
       rot_pts.push_back(res(i, 0));
