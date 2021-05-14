@@ -68,21 +68,21 @@ def GetParamServerAndWorld():
 
 
 class PyObserverModelTests(unittest.TestCase):
-  # def test_observer_model_none(self):
-  #   world, param_server = GetParamServerAndWorld()
-  #   # NOTE: create and assign ObserverModelNone
-  #   observer_model = ObserverModelNone(param_server)
-  #   world.observer_model = observer_model
-  #   world.Step(0.2)
-  #   assert(world.observer_model == observer_model)
+  def test_observer_model_none(self):
+    world, param_server = GetParamServerAndWorld()
+    # NOTE: create and assign ObserverModelNone
+    observer_model = ObserverModelNone(param_server)
+    world.observer_model = observer_model
+    world.Step(0.2)
+    assert(world.observer_model == observer_model)
     
-  # def test_py_observer_model_none(self):
-  #   world, param_server = GetParamServerAndWorld()
-  #   # NOTE: create and assign PythonObserverModel
-  #   observer_model = PythonObserverModel(param_server)
-  #   world.observer_model = observer_model
-  #   world.Step(0.2)
-  #   assert(world.observer_model == observer_model)
+  def test_py_observer_model_none(self):
+    world, param_server = GetParamServerAndWorld()
+    # NOTE: create and assign PythonObserverModel
+    observer_model = PythonObserverModel(param_server)
+    world.observer_model = observer_model
+    world.Step(0.2)
+    assert(world.observer_model == observer_model)
 
   # def test_observer_model_parametric(self):
   #   world, param_server = GetParamServerAndWorld()
@@ -95,95 +95,89 @@ class PyObserverModelTests(unittest.TestCase):
   def test_2d_points_on_sphere(self):
     # https://stats.stackexchange.com/questions/361017/proper-way-of-estimating-the-covariance-error-ellipse-in-2d
     # https://stackoverflow.com/questions/12301071/multidimensional-confidence-intervals/39749274#39749274
-    # 500.5886, 400.6111, 400.6111, 500.7801
-    # 1.68165 -0.793713;-0.793713 0.388516
+
+    # NOTE: to "verify" the confidence ellipses the results of https://stackoverflow.com/questions/25718363/how-to-plot-bivariate-normal-distribution-with-expanding-ellipses
+    #       are "reproduced"
     fig = plt.figure()
-    # for p in np.arange(0, 0.9, .1):
-    p = 0.95
-    cov = np.array([
-      [2., 0.],
-      [0., 4.]])
-    perm_angles = GetAllPermutatedAngles([.3])
-    pts = GetPointsOnSphere(cov, perm_angles, p)
-    pts = np.array(pts)
-    
-    ellipsis_eq = lambda x,y : x**2/2**2 + y**2/4**2
-    for pt in pts:
-      print("Value", ellipsis_eq(pt[0], pt[1]))
-    
-    pts = np.vstack((pts, pts[0,:]))
-    plt.plot(pts[:, 0], pts[:, 1])
-    plt.axis("equal")
+    for p in [.05, .25, .50, .75, .95]:
+      cov = np.array([
+        [9., 3.],
+        [3., 4.]])
+      perm_angles = GetAllPermutatedAngles([.3])
+      pts = GetPointsOnSphere(cov, perm_angles, p)
+      pts = np.array(pts)
+      pts = np.vstack((pts, pts[0,:]))
+      plt.plot(pts[:, 0] + 1, pts[:, 1] + 2)
     plt.show()
 
     
-  # def test_3d_points_on_sphere(self):
-  #   cov = np.array([
-  #     [3., 0., 0.],
-  #     [0., 1., 0.],
-  #     [0., 0., 2.]])
-  #   perm_angles = GetAllPermutatedAngles([.3, .3])
-  #   pts = GetPointsOnSphere(cov, perm_angles, .98)
-  #   pts = np.array(pts)
+  def test_3d_points_on_sphere(self):
+    cov = np.array([
+      [3., 0., 0.],
+      [0., 1., 0.],
+      [0., 0., 2.]])
+    perm_angles = GetAllPermutatedAngles([.3, .3])
+    pts = GetPointsOnSphere(cov, perm_angles, .98)
+    pts = np.array(pts)
     
-  #   print(pts.shape)    
-  #   fig = plt.figure()
-  #   ax = Axes3D(fig)
-  #   ax.plot(pts[:, 0], pts[:, 1], pts[:, 2], "r*")
+    print(pts.shape)    
+    fig = plt.figure()
+    ax = Axes3D(fig)
+    ax.plot(pts[:, 0], pts[:, 1], pts[:, 2], "r*")
 
 
-  #   pts = GetPointsOnSphere(0.5*cov, perm_angles, .98)
-  #   pts = np.array(pts)
-  #   ax.plot(pts[:, 0], pts[:, 1], pts[:, 2], "b*")
-  #   # plt.axis("equal")
-  #   # plt.show()
+    pts = GetPointsOnSphere(0.5*cov, perm_angles, .98)
+    pts = np.array(pts)
+    ax.plot(pts[:, 0], pts[:, 1], pts[:, 2], "b*")
+    # plt.axis("equal")
+    # plt.show()
     
-  # def test_4d_points_on_sphere(self):
-  #   cov = np.array([
-  #     [3., 0., 0., 0.],
-  #     [0., 1., 0., 0.],
-  #     [0., 0., 2., 0.],
-  #     [0., 0., 0., 3.]])
-  #   perm_angles = GetAllPermutatedAngles([.5, .5, .5])
-  #   pts = GetPointsOnSphere(cov, perm_angles, 0.98)
-  #   pts = np.array(pts)
+  def test_4d_points_on_sphere(self):
+    cov = np.array([
+      [3., 0., 0., 0.],
+      [0., 1., 0., 0.],
+      [0., 0., 2., 0.],
+      [0., 0., 0., 3.]])
+    perm_angles = GetAllPermutatedAngles([.5, .5, .5])
+    pts = GetPointsOnSphere(cov, perm_angles, 0.98)
+    pts = np.array(pts)
     
-  #   print(pts.shape)    
-  #   fig = plt.figure()
-  #   ax = Axes3D(fig)
-  #   ax.plot(pts[:, 0], pts[:, 1], pts[:, 2], "r*")
-  #   ax.plot(pts[:, 1], pts[:, 2], pts[:, 3], "b*")
-  #   # ax.set_xlim([-1, 1])
-  #   # ax.set_ylim([-1, 1])
-  #   # ax.set_zlim([-1, 1])
-  #   # plt.show()
+    print(pts.shape)    
+    fig = plt.figure()
+    ax = Axes3D(fig)
+    ax.plot(pts[:, 0], pts[:, 1], pts[:, 2], "r*")
+    ax.plot(pts[:, 1], pts[:, 2], pts[:, 3], "b*")
+    # ax.set_xlim([-1, 1])
+    # ax.set_ylim([-1, 1])
+    # ax.set_zlim([-1, 1])
+    # plt.show()
     
-  # def test_agent_state_isoline(self):
-  #   params = ParameterServer()
-  #   behavior = BehaviorIDMClassic(params)
-  #   execution = ExecutionModelInterpolate(params)
-  #   dynamic = SingleTrackModel(params)
-  #   shape = CarLimousine()
-  #   init_state = np.array([0, 0, 0, 0, 5])
-  #   goal_polygon = Polygon2d([0, 0, 0],[Point2d(-1,-1),Point2d(-1,1),Point2d(1,1), Point2d(1,-1)])
-  #   goal_definition = GoalDefinitionPolygon(goal_polygon)
-  #   agent = Agent(init_state, behavior, dynamic, execution, shape, params.AddChild("agent"), goal_definition)
+  def test_agent_state_isoline(self):
+    params = ParameterServer()
+    behavior = BehaviorIDMClassic(params)
+    execution = ExecutionModelInterpolate(params)
+    dynamic = SingleTrackModel(params)
+    shape = CarLimousine()
+    init_state = np.array([0, 0, 0, 0, 5])
+    goal_polygon = Polygon2d([0, 0, 0],[Point2d(-1,-1),Point2d(-1,1),Point2d(1,1), Point2d(1,-1)])
+    goal_definition = GoalDefinitionPolygon(goal_polygon)
+    agent = Agent(init_state, behavior, dynamic, execution, shape, params.AddChild("agent"), goal_definition)
     
-  #   cov = np.array([
-  #     [3., 0., 0.],
-  #     [0., 1., 0.],
-  #     [0., 0., 5.]])
-  #   delta_theta = [0.5, 0.5]
-  #   agent_list = ObserveAtIsoLine(agent, delta_theta, cov, 0.98)
+    cov = np.array([
+      [3., 0., 0.],
+      [0., 1., 0.],
+      [0., 0., 5.]])
+    delta_theta = [0.5, 0.5]
+    agent_list = ObserveAtIsoLine(agent, delta_theta, cov, 0.98)
     
     
-  #   fig = plt.figure()
-  #   ax = Axes3D(fig)
-  #   ax.set_title("Agent states")
-  #   for agent in agent_list:
-  #     state = agent.state
-  #     plt.plot([state[1]], [state[2]], state[3], 'r*')
-  #   plt.show()
+    fig = plt.figure()
+    ax = Axes3D(fig)
+    ax.set_title("Agent states")
+    for agent in agent_list:
+      state = agent.state
+      plt.plot([state[1]], [state[2]], state[3], 'r*')
+    plt.show()
     
 
 

@@ -127,9 +127,8 @@ std::vector<std::vector<double>> GetPointsOnSphere(
   auto e_vec_val = ComputeEVs(cov);
   auto evec_mat = std::get<0>(e_vec_val).real();
   auto eval_mat = std::get<1>(e_vec_val).real();
-  // std::cout << evec_mat << std::endl;
-  std::cout << "evec_mat: " << evec_mat << std::endl;
-  std::cout << "eval_mat: " << eval_mat << std::endl;
+  // std::cout << "evec_mat: " << evec_mat << std::endl;
+  // std::cout << "eval_mat: " << eval_mat << std::endl;
 
   // NOTE: for the isolines
   // this gives us (x/a^2) + ... = C
@@ -138,14 +137,14 @@ std::vector<std::vector<double>> GetPointsOnSphere(
   // degree of freedom is size - 1
   boost::math::chi_squared mydist(eval_mat.size());
   auto C = quantile(mydist, p_iso);
-  std::cout << "C = " << C << std::endl;
+  // std::cout << "C = " << C << std::endl;
 
   std::vector<double> coeffs;
   for (int i = 0; i < eval_mat.size(); i++) {
     // scaled EVs
     // see: https://www.michaelchughes.com/blog/2013/01/why-contours-for-multivariate-gaussian-are-elliptical/
     // coeff a,b,c..
-    double coeff = C/eval_mat(i);
+    double coeff = sqrt(C*eval_mat(i));
     coeffs.push_back(coeff);
   }
 
@@ -174,7 +173,7 @@ std::vector<std::vector<double>> GetPointsOnSphere(
     for (int i = 0; i < pts.size(); i++) {
       eigen_pts(i, 0) = pts[i];
     }
-    auto res = evec_mat.transpose()*eigen_pts;
+    auto res = evec_mat*eigen_pts;
     std::vector<double> rot_pts;
     for (int i = 0; i < pts.size(); i++) {
       rot_pts.push_back(res(i, 0));
