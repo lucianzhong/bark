@@ -127,9 +127,8 @@ std::vector<std::vector<double>> GetPointsOnSphere(
   auto e_vec_val = ComputeEVs(cov);
   auto evec_mat = std::get<0>(e_vec_val).real();
   auto eval_mat = std::get<1>(e_vec_val).real();
-  // std::cout << evec_mat << std::endl;
-  std::cout << "evec_mat: " << evec_mat << std::endl;
-  std::cout << "eval_mat: " << eval_mat << std::endl;
+  // std::cout << "evec_mat: " << evec_mat << std::endl;
+  // std::cout << "eval_mat: " << eval_mat << std::endl;
 
   // NOTE: for the isolines
   // this gives us (x/a^2) + ... = C
@@ -138,7 +137,7 @@ std::vector<std::vector<double>> GetPointsOnSphere(
   // degree of freedom is size - 1
   boost::math::chi_squared mydist(eval_mat.size());
   auto C = quantile(mydist, p_iso);
-  std::cout << "C = " << C << std::endl;
+  // std::cout << "C = " << C << std::endl;
 
   std::vector<double> coeffs;
   for (int i = 0; i < eval_mat.size(); i++) {
