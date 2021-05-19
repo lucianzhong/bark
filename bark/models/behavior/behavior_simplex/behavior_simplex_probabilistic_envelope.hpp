@@ -111,4 +111,4 @@ inline std::shared_ptr<BehaviorModel> BehaviorSimplexProbabilisticEnvelope::Clon
 }  // namespace models
 }  // namespace bark
 
-#endif  // BARK_MODELS_BEHAVIOR_BEHAVIOR_SIMPLEX_BEHAVIOR_SIMPLEX_SAMPLING_HPP_
+#endif  // BARK_MODELS_BEHAVIOR_BEHAVIOR_SIMPLEX_BEHAVIOR_SIMPLEX_PROBABILISTIC_ENVELOPE_HPP_

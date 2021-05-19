@@ -34,6 +34,7 @@
 #include "bark/models/behavior/behavior_safety/behavior_safety.hpp"
 #include "bark/models/behavior/behavior_rss/behavior_rss.hpp"
 #include "bark/models/behavior/behavior_simplex/behavior_simplex_sampling.hpp"
+#include "bark/models/behavior/behavior_simplex/behavior_simplex_probabilistic_envelope.hpp"
 #include "bark/python_wrapper/models/behavior.hpp"
 #include "bark/world/evaluation/evaluator_collision_ego_agent.hpp"
 #include "bark/world/goal_definition/goal_definition_polygon.hpp"
@@ -106,6 +107,7 @@ using bark::models::behavior::BehaviorNotStarted;
 using bark::models::behavior::BehaviorRSSConformant;
 using bark::models::behavior::BehaviorSafety;
 using bark::models::behavior::BehaviorSimplexSampling;
+using bark::models::behavior::BehaviorSimplexProbabilisticEnvelope;
 using bark::models::behavior::primitives::Primitive;
 using bark::models::behavior::primitives::PrimitiveConstAccChangeToLeft;
 using bark::models::behavior::primitives::PrimitiveConstAccChangeToRight;
@@ -171,6 +173,8 @@ py::tuple BehaviorModelToPython(BehaviorModelPtr behavior_model) {
     behavior_model_name = "BehaviorMPMacroActions";
   } else if (typeid(*behavior_model) == typeid(BehaviorSimplexSampling)) {
     behavior_model_name = "BehaviorSimplexSampling";
+  } else if (typeid(*behavior_model) == typeid(BehaviorSimplexProbabilisticEnvelope)) {
+    behavior_model_name = "BehaviorSimplexProbabilisticEnvelope";
   } else if (typeid(*behavior_model) == typeid(BehaviorSafety)) {
     behavior_model_name = "BehaviorSafety";
   } else if (typeid(*behavior_model) == typeid(BehaviorRSSConformant)) {
@@ -252,6 +256,9 @@ BehaviorModelPtr PythonToBehaviorModel(py::tuple t) {
   } else if (behavior_model_name.compare("BehaviorSimplexSampling") == 0) {
     return std::make_shared<BehaviorSimplexSampling>(
         t[0].cast<BehaviorSimplexSampling>());
+  } else if (behavior_model_name.compare("BehaviorSimplexProbabilisticEnvelope") == 0) {
+    return std::make_shared<BehaviorSimplexProbabilisticEnvelope>(
+        t[0].cast<BehaviorSimplexProbabilisticEnvelope>());
   } else if (behavior_model_name.compare("BehaviorRSSConformant") == 0) {
     return std::make_shared<BehaviorRSSConformant>(
         t[0].cast<BehaviorRSSConformant>());

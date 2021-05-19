@@ -42,6 +42,7 @@ cc_binary(
     "//bark/models/behavior/behavior_safety:behavior_safety",
     "//bark/models/behavior/behavior_rss:behavior_rss",
     "//bark/models/behavior/behavior_simplex:behavior_simplex_sampling",
+    "//bark/models/behavior/behavior_simplex:behavior_simplex_probabilistic_envelope",
     "//bark/models/observer:observer_model",
     "//bark/models/observer:observer_model_parametric",
     "//bark/models/observer/utils:ellipsis",
@@ -98,6 +99,7 @@ cc_library(
     "//bark/models/behavior/behavior_safety:behavior_safety",
     "//bark/models/behavior/behavior_rss:behavior_rss",
     "//bark/models/behavior/behavior_simplex:behavior_simplex_sampling",
+    "//bark/models/behavior/behavior_simplex:behavior_simplex_probabilistic_envelope",
     "//bark/models/behavior/idm/stochastic:stochastic",
     "//bark/world/evaluation/ltl/label_functions:label_function"
     ],

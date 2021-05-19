@@ -38,7 +38,7 @@ using models::dynamic::State;
 /**
  * @brief  Function that recursively computes all angle combinations
  */
-void expand(
+inline void expand(
   const std::map<int, std::vector<double>>& dim_angles,
   std::vector<int> curr_ids,
   std::vector<std::vector<double>>& permutated_angles,
@@ -76,7 +76,7 @@ void expand(
  * @param  delta_theta: e.g., [0.25, 0.5]
  * @retval 
  */
-std::vector<std::vector<double>> GetAllPermutatedAngles(
+inline std::vector<std::vector<double>> GetAllPermutatedAngles(
   const std::vector<double>& delta_theta) {
   // initialize angles
   std::map<int, std::vector<double>> dim_angles;
@@ -103,7 +103,7 @@ std::vector<std::vector<double>> GetAllPermutatedAngles(
 using MatrixD = Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic>;
 using MatrixC = Eigen::Matrix<
   std::complex<double>, Eigen::Dynamic, Eigen::Dynamic>;
-std::pair<MatrixC, MatrixC> ComputeEVs(const MatrixD& cov) {
+inline std::pair<MatrixC, MatrixC> ComputeEVs(const MatrixD& cov) {
   Eigen::EigenSolver<MatrixD> es(cov);
   MatrixC e_vec = es.eigenvectors();
   MatrixC e_values = es.eigenvalues();
@@ -119,7 +119,7 @@ std::pair<MatrixC, MatrixC> ComputeEVs(const MatrixD& cov) {
  * @param  p_iso: e.g., 0.98 quantile
  * @retval 
  */
-std::vector<std::vector<double>> GetPointsOnSphere(
+inline std::vector<std::vector<double>> GetPointsOnSphere(
   const MatrixD& cov,
   const std::vector<std::vector<double>>& permutated_angles,
   double p_iso = 0.98) {
@@ -185,7 +185,7 @@ std::vector<std::vector<double>> GetPointsOnSphere(
 }
 
 // ObserveAtIsoLine(AgentPtr (o_t), angular_delta (vector with dimensions of multivariate distribution), P_ISO)  -> std::vector (2pi/angular_delta_dim12pi/angular_delta_dim22pi/angular_delta_dim3*2pi/angular_delta_dim3) (Patrick)
-std::vector<AgentPtr> ObserveAtIsoLine(
+inline std::vector<AgentPtr> ObserveAtIsoLine(
   const AgentPtr& agent, std::vector<double> delta_theta,
   const MatrixD& cov, double p_iso) {
 
