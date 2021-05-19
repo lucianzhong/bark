@@ -25,6 +25,7 @@
 #include "bark/models/behavior/behavior_safety/behavior_safety.hpp"
 #include "bark/models/behavior/behavior_rss/behavior_rss.hpp"
 #include "bark/models/behavior/behavior_simplex/behavior_simplex_sampling.hpp"
+#include "bark/models/behavior/behavior_simplex/behavior_simplex_probabilistic_envelope.hpp"
 #include "bark/python_wrapper/models/plan/plan.hpp"
 #include "bark/python_wrapper/polymorphic_conversion.hpp"
 
@@ -533,6 +534,62 @@ void python_behavior(py::module m) {
           throw std::runtime_error("Invalid behavior model state!");
         /* Create a new C++ instance */
         auto bm = new BehaviorSimplexSampling(
+          PythonToParams(t[0].cast<py::tuple>()));
+        auto nb = std::make_shared<BehaviorIDMLaneTracking>(
+          PythonToParams(t[1].cast<py::tuple>()));
+        auto sb = std::make_shared<BehaviorSafety>(
+          PythonToParams(t[2].cast<py::tuple>()));
+        bm->SetNominalBehaviorModel(nb);
+        bm->SetSafetyBehaviorModel(sb);
+        #ifdef RSS
+        // safety responses
+        bm->SetLongitudinalResponse(t[3].cast<bool>());
+        bm->SetLateralLeftResponse(t[4].cast<bool>());
+        bm->SetLateralRightResponse(t[5].cast<bool>());
+        bm->SetSafetyPolygons(t[6].cast<std::vector<SafetyPolygon>>());
+        // TODO: load safety polygons
+        bm->SetAccelerationLimitsVehicleCs(t[7].cast<AccelerationLimits>());
+        bm->SetAccelerationLimitsStreetCs(t[8].cast<AccelerationLimits>());
+        #endif
+        return bm;
+      }));
+
+  py::class_<BehaviorSimplexProbabilisticEnvelope, BehaviorRSSConformant,
+             shared_ptr<BehaviorSimplexProbabilisticEnvelope>>(m, "BehaviorSimplexProbabilisticEnvelope")
+    .def(py::init<const bark::commons::ParamsPtr&>())
+    .def("__repr__",
+      [](const BehaviorSimplexProbabilisticEnvelope& b) {
+        return "bark.behavior.BehaviorSimplexProbabilisticEnvelope";
+      })
+    .def(py::pickle(
+      [](const BehaviorSimplexProbabilisticEnvelope& b) {
+        // TODO: store safety polygons
+        #ifdef RSS
+        return py::make_tuple(
+          ParamsToPython(b.GetParams()), 
+          ParamsToPython(b.GetNominalBehaviorModel()->GetParams()), 
+          ParamsToPython(b.GetBehaviorSafetyModel()->GetParams()),
+          b.GetLongitudinalResponse(),
+          b.GetLateralLeftResponse(),
+          b.GetLateralRightResponse(),
+          b.GetSafetyPolygons(),
+          b.GetAccelerationLimitsVehicleCs(),
+          b.GetAccelerationLimitsStreetCs());
+        #endif
+        return py::make_tuple(
+          ParamsToPython(b.GetParams()), 
+          ParamsToPython(b.GetNominalBehaviorModel()->GetParams()), 
+          ParamsToPython(b.GetBehaviorSafetyModel()->GetParams()));
+      },
+      [](py::tuple t) {
+        int num_params = 3;
+        #ifdef RSS
+        num_params = 9;
+        #endif
+        if (t.size() != num_params)
+          throw std::runtime_error("Invalid behavior model state!");
+        /* Create a new C++ instance */
+        auto bm = new BehaviorSimplexProbabilisticEnvelope(
           PythonToParams(t[0].cast<py::tuple>()));
         auto nb = std::make_shared<BehaviorIDMLaneTracking>(
           PythonToParams(t[1].cast<py::tuple>()));
