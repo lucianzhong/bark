@@ -180,7 +180,7 @@ Trajectory BehaviorSimplexProbabilisticEnvelope::Plan(
   }
 
   // Calculate probablistic envelope and expected violation
-  EnvelopeProbabilityPair current_probabilistic_envelope_ =
+  current_probabilistic_envelope_ =
            CalculateProbabilisticEnvelope(envelopes, violation_threshold_, iso_probability_discretizations_); 
   current_expected_safety_violation_ = CalculateExpectedViolation(violations, iso_probability_discretizations_);
   
