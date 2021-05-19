@@ -115,6 +115,23 @@ py_test(
 )
 
 py_test(
+  name = "py_behavior_probabilistic_envelope_test",
+  srcs = ["py_behavior_probabilistic_envelope_test.py"],
+  data = ['//bark:generate_core',
+          '//bark/runtime/tests:xodr_data',
+          '//bark/examples:params'],
+  imports = ['../python/'],
+  deps = ["//bark/runtime/commons:commons",
+          "//bark/runtime:runtime",
+          "//bark/runtime/scenario/scenario_generation:scenario_generation",
+          "//bark/runtime/commons:parameters",
+          "//bark/runtime/commons:xodr_parser",
+          "//bark/runtime/viewer:pygame_viewer",
+          "//bark/runtime/viewer:matplotlib_viewer",
+          '//bark/examples:paths'],
+)
+
+py_test(
   name = "py_observer_model_test",
   srcs = ["py_observer_model_test.py"],
   data = ['//bark:generate_core',
