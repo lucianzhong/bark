@@ -31,7 +31,7 @@ TEST(ellipsis, angle_generation) {
   const std::vector<double> delta_theta{M_PI_4, M_PI_4};
   std::vector<std::vector<double>> permutated_angles =
     GetAllPermutatedAngles(delta_theta);
-  
+
   for (auto angles : permutated_angles) {
     std::cout << "Angle : ";
     for (auto a : angles) {
@@ -53,10 +53,10 @@ TEST(ellipsis, eigenvectors) {
   std::vector<std::vector<double>> permutated_angles =
     GetAllPermutatedAngles(delta_theta);
 
-  std::vector<std::vector<double>> pts_on_sphere = 
-    GetPointsOnSphere(cov, permutated_angles, 1.);
+  std::vector<std::vector<double>> pts_on_sphere =
+    GetPointsOnSphere(cov, permutated_angles, 0.99);
 
-  for (auto d : pts_on_sphere) { 
+  for (auto d : pts_on_sphere) {
     std::cout << "x: " << d[0] << ", y: " << d[1] << ", z: " << d[2] << std::endl;
   }
 
@@ -102,14 +102,14 @@ TEST(observer_model_parametric, position_deviation_test) {
 
   params->SetListFloat("ObserverModelParametric::EgoStateDeviationDist::Mean", {0.7, 1.8, 0.0, 0.0});
   params->SetListListFloat("ObserverModelParametric::EgoStateDeviationDist::Covariance",
-                             {{0.2, 0.0, 0.0, 0.0}, 
+                             {{0.2, 0.0, 0.0, 0.0},
                               {0.0, 0.2, 0.0, 0.0},
                               {0.0, 0.0, 0.01, 0.0},
                               {0.0, 0.0, 0.0, 0.01}});
-  
+
   params->SetListFloat("ObserverModelParametric::OtherStateDeviationDist::Mean", {0.7, 1.8, 0.0, 0.0});
   params->SetListListFloat("ObserverModelParametric::OtherStateDeviationDist::Covariance",
-                             {{0.2, 0.0, 0.0, 0.0}, 
+                             {{0.2, 0.0, 0.0, 0.0},
                               {0.0, 0.2, 0.0, 0.0},
                               {0.0, 0.0, 0.01, 0.0},
                               {0.0, 0.0, 0.0, 0.01}});
