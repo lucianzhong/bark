@@ -117,11 +117,10 @@ def CalculateEnvelopeAndExpectedViolation(x_standard_deviation = 0.2, violation_
   ego_agent.behavior_model = \
     BehaviorSimplexProbabilisticEnvelope(params_behavior)
   world.Step(0.2)
-  envelope = ego_agent.behavior_model.GetCurrentProbabilisticEnvelope()
+  prob_envelope = ego_agent.behavior_model.GetCurrentProbabilisticEnvelope()
+  envelope = prob_envelope[0]
   expected_violation = ego_agent.behavior_model.GetCurrentExpectedSafetyViolation()
 
-  # print("envelope: ", envelope)
-  # print("\n expected_violation: ", expected_violation)
   return (envelope, expected_violation)
 
 def print_rss_safety_response(evaluator_rss, world):
@@ -136,7 +135,32 @@ def print_rss_safety_response(evaluator_rss, world):
 
 class PyProbabilisticEnvelopeBehaviorTests(unittest.TestCase):
   def test_increase_standard_deviation(self):
-    envelope, expected_violation = CalculateEnvelopeAndExpectedViolation()
+    envelope1, expected_violation1 = CalculateEnvelopeAndExpectedViolation(0.1, 0.1)
+    envelope2, expected_violation2 = CalculateEnvelopeAndExpectedViolation(0.2, 0.1)
+    envelope3, expected_violation3 = CalculateEnvelopeAndExpectedViolation(0.4, 0.1)
+    envelope4, expected_violation4 = CalculateEnvelopeAndExpectedViolation(0.8, 0.1)
+
+    print("envelope1: lat_acc_min=%f, lat_max: %f \n lon_acc_min=%f, lon_acc_max=%f"% \
+      (envelope3.lat_acc_min, envelope3.lat_acc_max, envelope3.lon_acc_min, envelope3.lon_acc_max))
+    print("envelope2: lat_acc_min=%f, lat_max: %f \n lon_acc_min=%f, lon_acc_max=%f"% \
+      (envelope4.lat_acc_min, envelope4.lat_acc_max, envelope4.lon_acc_min, envelope4.lon_acc_max))
+
+    #double lat_acc_max;
+    #double lat_acc_min;
+    #double lon_acc_max;
+    #double lon_acc_min;
+
+
+    print("expected_violation1: ", expected_violation3)
+    print("expected_violation2: ", expected_violation4)
+
+    #assert(expected_violation1 < expected_violation2)
+    #assert(expected_violation2 < expected_violation3)
+    #assert(expected_violation3 < expected_violation4)
+
+    assert(envelope1 > envelope2)
+    assert(envelope2 > envelope3)
+    assert(envelope3 > envelope4)
     
 
 
