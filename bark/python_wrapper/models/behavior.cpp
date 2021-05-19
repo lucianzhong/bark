@@ -561,6 +561,8 @@ void python_behavior(py::module m) {
       [](const BehaviorSimplexProbabilisticEnvelope& b) {
         return "bark.behavior.BehaviorSimplexProbabilisticEnvelope";
       })
+    .def("GetCurrentProbabilisticEnvelope", &BehaviorSimplexProbabilisticEnvelope::GetCurrentProbabilisticEnvelope )
+    .def("GetCurrentExpectedSafetyViolation", &BehaviorSimplexProbabilisticEnvelope::GetCurrentExpectedSafetyViolation )
     .def(py::pickle(
       [](const BehaviorSimplexProbabilisticEnvelope& b) {
         // TODO: store safety polygons

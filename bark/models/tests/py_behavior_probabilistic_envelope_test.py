@@ -6,10 +6,20 @@
 # This work is licensed under the terms of the MIT license.
 # For a copy, see <https://opensource.org/licenses/MIT>.
 
-
+try:
+    import debug_settings
+except:
+    pass
 import unittest
 import os
 import numpy as np
+import logging
+import matplotlib.pyplot as plt
+logging.basicConfig()
+logging.getLogger().setLevel(logging.INFO)
+
+logging.info("Running on process with ID: {}".format(os.getpid()))
+
 from bark.runtime.scenario.scenario_generation.deterministic \
   import DeterministicScenarioGeneration
 from bark.runtime.scenario.scenario_generation.scenario_generation \
@@ -39,20 +49,6 @@ except:
     raise ImportError(
         "This example requires building RSS, please run with \"bazel run //examples:highway_rss --define rss=true\"")
 
-# parameters
-param_server = ParameterServer(filename=Data.params_data("highway_merge_configurable"))
-param_server["BehaviorSimplexProbabilisticEnvelope"]["MinVehicleRearDistance"] = 4.
-param_server["BehaviorSimplexProbabilisticEnvelope"]["MinVehicleFrontDistance"] = 2.
-param_server["BehaviorSimplexProbabilisticEnvelope"]["TimeKeepingGap"] = 0.
-param_server["World"]["LateralDifferenceThreshold"] = 2.0
-
-# param_server["Visualization"]["Evaluation"]["DrawRssDebugInfo"] = True
-# param_server["Visualization"]["Evaluation"]["DrawRssSafetyResponses"] = True
-param_server["Visualization"]["Evaluation"]["DrawEgoRSSSafetyResponses"] = True
-
-
-# custom lane configuration that sets a different behavior model
-# and sets the desired speed for the behavior
 class HighwayLaneCorridorConfig(LaneCorridorConfig):
     def __init__(self, params=None, **kwargs):
         super().__init__(params=params, **kwargs)
@@ -67,113 +63,65 @@ class HighwayLaneCorridorConfig(LaneCorridorConfig):
             "BehaviorSimplexProbabilisticEnvelope"+str(self._count))
         params["BehaviorIDMClassic"]["DesiredVelocity"] = \
             np.random.uniform(5., 10.)
-        behavior_model = BehaviorSimplexProbabilisticEnvelope(params)
+        behavior_model = BehaviorLaneChangeRuleBased(params)
         self._count += 1
         return behavior_model
 
 def CalculateEnvelopeAndExpectedViolation(x_standard_deviation = 0.2, violation_threshold = 0.1):  
-  param_server["ObserverModelParametric"]["EgoStateDeviationDist"]["Mean"] = np.array([0., 0.], dtype=np.float32)
-  param_server["ObserverModelParametric"]["EgoStateDeviationDist"]["Covariance"] = \
-                              np.array([[0.0, 0.0, 0.0, 0.0], 
-                                [0.0, 0.0, 0.0, 0.0],
-                                [0.0, 0.0, 0.0, 0.0],
-                                [0.0, 0.0, 0.0, 0.0]], dtype=np.float32)
-  
-  param_server["ObserverModelParametric"]["OtherStateDeviationDist"]["Mean"] = {0,0}
-  param_server["ObserverModelParametric"]["OtherStateDeviationDist"]["Covariance"] = \
-                              np.array([[x_standard_deviation, 0.0, 0.0, 0.0], 
-                                [0.0, 0.0, 0.0, 0.0],
-                                [0.0, 0.0, 0.0, 0.0],
-                                [0.0, 0.0, 0.0, 0.0]], dtype=np.float32)
+  params_parametric = ParameterServer()
+  params_parametric["ObserverModelParametric"] \
+        ["EgoStateDeviationDist"]["Covariance"] = [[0.0, 0.0, 0.0, 0.0],  #  4 x 4 elements
+                                                  [0.0, 0.0, 0.0, 0.0],
+                                                  [0.0, 0.0, 0.0, 0.0],
+                                                  [0.0, 0.0, 0.0, 0.0]]
+  params_parametric["ObserverModelParametric"] \
+        ["EgoStateDeviationDist"]["Mean"] =       [0.0, 0.0, 0.0, 0.0] # 4 elements
+  params_parametric["ObserverModelParametric"] \
+        ["OtherStateDeviationDist"]["Covariance"] = [[x_standard_deviation, 0.0, 0.0, 0.0],  #  4 x 4 elements
+                                                  [0.0, 0.01, 0.0, 0.0],
+                                                  [0.0, 0.00, 0.001, 0.0],
+                                                  [0.0, 0.00, 0.0, 0.05]]
+  params_parametric["ObserverModelParametric"] \
+      ["OtherStateDeviationDist"]["Mean"] =       [0.0, 0.0, 0.0, 0.0] # 4 elements
+  parametric_observer = ObserverModelParametric(params_parametric)
 
-  param_server["BehaviorSimplexProbabilisticEnvelope"]["ViolationThreshold"] = violation_threshold
-  observer_model_parametric = ObserverModel(param_server)
-
-  # TODO
-  # world->SetObserverModel(observer_model_parametric);
-
-  # configure both lanes of the highway. the right lane has one controlled agent
-  left_lane = HighwayLaneCorridorConfig(params=param_server,
+  params_scenario = ParameterServer()
+  left_lane = HighwayLaneCorridorConfig(params=params_scenario,
                                         road_ids=[16],
                                         lane_corridor_id=0)
-  right_lane = HighwayLaneCorridorConfig(params=param_server,
+  right_lane = HighwayLaneCorridorConfig(params=params_scenario,
                                         road_ids=[16],
                                         lane_corridor_id=1,
                                         controlled_ids=True)
-
-
+        
   # create 1 scenarios
   scenarios = \
       ConfigWithEase(
           num_scenarios=1,
           map_file_name=Data.xodr_data("city_highway_straight"),
           random_seed=0,
-          params=param_server,
+          params=params_scenario,
           lane_corridor_configs=[left_lane, right_lane])
 
-  # viewer
-  # viewer = MPViewer(params=param_server,
-  #                   x_range=[-75, 75],
-  #                   y_range=[-75, 75],
-  #                   follow_agent_id=True)
+  params_behavior = ParameterServer()
+  params_behavior["EvaluatorRss"]["MapFilename"] = Data.xodr_data("city_highway_straight")
+  params_behavior["BehaviorSimplexProbabilisticEnvelope"]["IsoProbalityDiscretizations"] = [0.1, 0.2, 0.4, 0.8]
+  params_behavior["BehaviorSimplexProbabilisticEnvelope"]["AngularDiscretization"] = [3.14/2.0, 3.14/2.0, 3.14/2.0]
+  params_behavior["BehaviorSimplexProbabilisticEnvelope"]["ViolationThreshold"] = violation_threshold
 
-  # sim_step_time = param_server["simulation"]["step_time",
-  #                                           "Step-time used in simulation",
-  #                                           0.05]
-  # sim_real_time_factor = param_server["simulation"][
-  #     "real_time_factor",
-  #     "execution in real-time or faster",
-  #     0.5]
+  # Step scenario once, to invoke planning of probabilistic envelope behavior
+  scenario = scenarios.get_scenario(0)
+  world = scenario.GetWorldState()
+  world.observer_model = parametric_observer
+  ego_agent = world.agents[scenario.eval_agent_ids[0]] 
+  ego_agent.behavior_model = \
+    BehaviorSimplexProbabilisticEnvelope(params_behavior)
+  world.Step(0.2)
+  envelope = ego_agent.behavior_model.GetCurrentProbabilisticEnvelope()
+  expected_violation = ego_agent.behavior_model.GetCurrentExpectedSafetyViolation()
 
-  viewer = VideoRenderer(renderer=viewer,
-                        world_step_time=sim_step_time,
-                        fig_path="/tmp/video")
-
-  # gym like interface
-  env = Runtime(step_time=0.2,
-                viewer=viewer,
-                scenario_generator=scenarios,
-                render=False)
-
-
-  # Defining vehicles dynamics for RSS
-
-  # Input format:
-  # [longitudinal max acceleration, longitudinal max braking, longitudinal min acceleration,
-  # longitudinal min brake correct, lateral max acceleration, lateral min braking,
-  # lateral flucatuation_margin, agent response time]
-  #
-  # Detailed explanation please see:
-  # https://intel.github.io/ad-rss-lib/ad_rss/Appendix-ParameterDiscussion/#parameter-discussion
-
-
-  param_server["EvaluatorRss"]["MapFilename"] = Data.xodr_data("city_highway_straight")
-
-  # run 1 scenario
-  for episode in range(0, 1):
-      env.reset()
-      current_world = env._world
-      current_world.SetObserverModel(observer_model_parametric)
-      eval_agent_id = env._scenario._eval_agent_ids[0]
-      observed_world = observer_model_parametric.Observe(current_world, eval_agent_id)
-      ego_agent = current_world.agents[eval_agent_id] 
-      ego_agent.behavior_model = \
-        BehaviorSimplexProbabilisticEnvelope(param_server)
-      evaluator_rss = EvaluatorRSS(eval_agent_id, param_server)
-
-      current_world.AddEvaluator("rss", evaluator_rss)
-
-      # step each scenario 40 times
-      for step in range(0, 1):
-          env.step()
-          print_rss_safety_response(evaluator_rss, current_world)
-          time.sleep(sim_step_time / sim_real_time_factor)
-
-          envelope = ego_agent.behavior_model.GetCurrentProbabilisticEnvelope()
-          expected_violation = ego_agent.behavior_model.GetCurrentExpectedSafetyViolation()
-
-          # print("envelope: ", envelope)
-          # print("\n expected_violation: ", expected_violation)
+  # print("envelope: ", envelope)
+  # print("\n expected_violation: ", expected_violation)
   return (envelope, expected_violation)
 
 def print_rss_safety_response(evaluator_rss, world):
@@ -186,141 +134,10 @@ def print_rss_safety_response(evaluator_rss, world):
         # print("Pairwise directional safety response: ",
         #       evaluator_rss.PairwiseDirectionalEvaluate(world))
 
-class PyBehaviorModelTests(unittest.TestCase):
-  def test_python_model(self):
-
-    x_standard_deviation = 0.2
-    violation_threshold = 0.1
-    param_server["ObserverModelParametric"]["EgoStateDeviationDist"]["Mean"] = np.array([0., 0.], dtype=np.float32)
-    param_server["ObserverModelParametric"]["EgoStateDeviationDist"]["Covariance"] = \
-                                np.array([[0.0, 0.0, 0.0, 0.0], 
-                                [0.0, 0.0, 0.0, 0.0],
-                                [0.0, 0.0, 0.0, 0.0],
-                                [0.0, 0.0, 0.0, 0.0]], dtype=np.float32)
+class PyProbabilisticEnvelopeBehaviorTests(unittest.TestCase):
+  def test_increase_standard_deviation(self):
+    envelope, expected_violation = CalculateEnvelopeAndExpectedViolation()
     
-    param_server["ObserverModelParametric"]["OtherStateDeviationDist"]["Mean"] = {0,0}
-    param_server["ObserverModelParametric"]["OtherStateDeviationDist"]["Covariance"] = \
-                                np.array([[x_standard_deviation, 0.0, 0.0, 0.0], 
-                                [0.0, 0.0, 0.0, 0.0],
-                                [0.0, 0.0, 0.0, 0.0],
-                                [0.0, 0.0, 0.0, 0.0]], dtype=np.float32)
-
-    param_server["BehaviorSimplexProbabilisticEnvelope"]["ViolationThreshold"] = violation_threshold
-    observer_model_parametric = ObserverModel(param_server)
-
-    # TODO
-    # world->SetObserverModel(observer_model_parametric);
-
-    # configure both lanes of the highway. the right lane has one controlled agent
-    left_lane = HighwayLaneCorridorConfig(params=param_server,
-                                          road_ids=[16],
-                                          lane_corridor_id=0)
-    right_lane = HighwayLaneCorridorConfig(params=param_server,
-                                          road_ids=[16],
-                                          lane_corridor_id=1,
-                                          controlled_ids=True)
-
-
-    # create 1 scenarios
-    scenarios = \
-        ConfigWithEase(
-            num_scenarios=1,
-            map_file_name=Data.xodr_data("city_highway_straight"),
-            random_seed=0,
-            params=param_server,
-            lane_corridor_configs=[left_lane, right_lane])
-
-    # viewer
-    viewer = MPViewer(params=param_server,
-                      x_range=[-75, 75],
-                      y_range=[-75, 75],
-                      follow_agent_id=True)
-
-    sim_step_time = param_server["simulation"]["step_time",
-                                              "Step-time used in simulation",
-                                              0.05]
-    sim_real_time_factor = param_server["simulation"][
-        "real_time_factor",
-        "execution in real-time or faster",
-        0.5]
-
-    viewer = VideoRenderer(renderer=viewer,
-                          world_step_time=sim_step_time,
-                          fig_path="/tmp/video")
-
-    # gym like interface
-    env = Runtime(step_time=0.2,
-                  viewer=viewer,
-                  scenario_generator=scenarios,
-                  render=True)
-
-
-    # Defining vehicles dynamics for RSS
-
-    # Input format:
-    # [longitudinal max acceleration, longitudinal max braking, longitudinal min acceleration,
-    # longitudinal min brake correct, lateral max acceleration, lateral min braking,
-    # lateral flucatuation_margin, agent response time]
-    #
-    # Detailed explanation please see:
-    # https://intel.github.io/ad-rss-lib/ad_rss/Appendix-ParameterDiscussion/#parameter-discussion
-
-
-    param_server["EvaluatorRss"]["MapFilename"] = Data.xodr_data("city_highway_straight")
-
-    # change amit
-    # run 3 scenarios
-    for episode in range(0, 1):
-        env.reset()
-        current_world = env._world
-        current_world.SetObserverModel(observer_model_parametric)
-        eval_agent_id = env._scenario._eval_agent_ids[0]
-        observed_world = observer_model_parametric.Observe(current_world, eval_agent_id)
-        ego_agent = current_world.agents[eval_agent_id] 
-        ego_agent.behavior_model = \
-          BehaviorSimplexProbabilisticEnvelope(param_server)
-        evaluator_rss = EvaluatorRSS(eval_agent_id, param_server)
-
-        current_world.AddEvaluator("rss", evaluator_rss)
-
-        # step each scenario 40 times
-        for step in range(0, 4):
-            env.step()
-            print_rss_safety_response(evaluator_rss, current_world)
-            time.sleep(sim_step_time / sim_real_time_factor)
-
-            envelope = ego_agent.behavior_model.GetCurrentProbabilisticEnvelope()
-            expected_violation = ego_agent.behavior_model.GetCurrentExpectedSafetyViolation()
-
-            print("envelope: ", envelope)
-            print("\n expected_violation: ", expected_violation)
-
-    # viewer.export_video(filename="/tmp/highway_rss", remove_image_dir=False)
-
-
-# class PyBehaviorModelTests(unittest.TestCase):
-#   def test_python_model(self):
-#     param_server = ParameterServer(
-#       filename= os.path.join(os.path.dirname(__file__),"../../runtime/tests/data/deterministic_scenario.json"))
-#     param_server
-    
-#     mapfile = os.path.join(os.path.dirname(__file__),"../../runtime/tests/data/city_highway_straight.xodr")
-#     param_server["Scenario"]["Generation"]["DeterministicScenarioGeneration"]["MapFilename"] = mapfile
-#     scenario_generation = DeterministicScenarioGeneration(num_scenarios=3,
-#                                                           random_seed=0,
-#                                                           params=param_server)
-#     viewer = MPViewer(params=param_server,
-#                       follow_agent_id=False,
-#                       use_world_bounds=True)
-#     scenario, idx = scenario_generation.get_next_scenario()
-#     world = scenario.GetWorldState()
-#     single_track_model = SingleTrackModel(param_server)
-#     behavior_model = PythonBehaviorModelWrapper(
-#       single_track_model, param_server)
-#     world.GetAgent(0).behavior_model = behavior_model
-#     world.GetAgent(0).behavior_model.SetLastAction(
-#       np.array([1., 1.], dtype=np.float32))
-#     world.Step(0.2)
 
 
 

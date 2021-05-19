@@ -34,6 +34,10 @@ using world::evaluation::BaseEvaluator;
 using world::objects::AgentId;
 using world::objects::AgentPtr;
 using bark::commons::Probability;
+using bark::models::dynamic::State;
+using bark::models::dynamic::StateDefinition::X_POSITION;
+using bark::models::dynamic::StateDefinition::Y_POSITION;
+using bark::geometry::Point2d;
 
 Eigen::MatrixXd GetObserverCovariance(const ObservedWorld& observed_world) {
   const auto& observer_parametric = std::dynamic_pointer_cast<ObserverModelParametric>(
@@ -62,7 +66,7 @@ std::pair<EnvelopeProbabilityList, ViolationProbabilityList>
                                                                             const double min_planning_time) {
   EnvelopeProbabilityList agent_envelopes;
   ViolationProbabilityList agent_violations;
-  for (std::size_t iso_prob_idx; iso_prob_idx < iso_discretizations.size(); ++iso_prob_idx) {
+  for (std::size_t iso_prob_idx = 0; iso_prob_idx < iso_discretizations.size(); ++iso_prob_idx) {
     // Create agent variations at a certain iso line
     const auto& other_agent_variations = ObserveAtIsoLine(other_agent, angular_discretization,
                                                         observer_covariance, iso_discretizations.at(iso_prob_idx));
@@ -153,9 +157,19 @@ Trajectory BehaviorSimplexProbabilisticEnvelope::Plan(
   ego_only_world->ClearAgents();
   ego_only_world->AddAgent(ego_agent);
   const auto observer_covariance = GetObserverCovariance(observed_world);
+
+  State ego_state = ego_agent->GetCurrentState();
+  Point2d ego_position(ego_state(X_POSITION), ego_state(Y_POSITION));
+  const Polygon& ego_polygon = ego_agent->GetPolygonFromState(ego_state);
+  const unsigned max_nearest_agents = 3; // 2 + 1 ego agent
+  const auto nearby_agents =
+      observed_world.GetNearestAgents(ego_position, max_nearest_agents);
+
   EnvelopeProbabilityList envelopes;
   ViolationProbabilityList violations;
-  for (const auto& other_agent : observed_world.GetOtherAgents()) {
+  for (const auto& other_agent : nearby_agents) {
+    if(other_agent.first == observed_world.GetEgoAgentId()) continue;
+
     auto envelopes_violations = CalculateAgentsWorstCaseEnvelopes(*ego_only_world, other_agent.second,
                                                      iso_probability_discretizations_, observer_covariance,
                                                       angular_discretization_, rss_evaluator_, min_planning_time);
