@@ -9,6 +9,7 @@
 #include <memory>
 #include <optional>
 #include <tuple>
+#include <vector>
 
 #include "bark/models/behavior/behavior_rss/behavior_rss.hpp"
 #include "bark/models/behavior/behavior_simplex/behavior_simplex_probabilistic_envelope.hpp"
@@ -58,6 +59,45 @@ void SortEnvelopes(
     envelope_probability_list.end(), lambda);
 }
 
+std::vector<EnvelopeProbabilityList> MinMaxEnvelopeValues(
+  EnvelopeProbabilityList& envelope_probability_list) {
+
+  EnvelopeProbabilityList lat_min_prob_list = envelope_probability_list;
+  EnvelopeProbabilityList lat_max_prob_list = envelope_probability_list;
+  EnvelopeProbabilityList lon_min_prob_list = envelope_probability_list;
+  EnvelopeProbabilityList lon_max_prob_list = envelope_probability_list;
+
+  // this needs to be sorted in four directions
+  auto lambda_lat_min = [](
+    const EnvelopeProbabilityPair ep1, const EnvelopeProbabilityPair& ep2){
+    return ep1.first.lat_acc_min < ep2.first.lat_acc_min;
+  };
+  auto lambda_lat_max = [](
+    const EnvelopeProbabilityPair ep1, const EnvelopeProbabilityPair& ep2){
+    return ep1.first.lat_acc_max > ep2.first.lat_acc_max;
+  };
+  auto lambda_lon_min = [](
+    const EnvelopeProbabilityPair ep1, const EnvelopeProbabilityPair& ep2){
+    return ep1.first.lon_acc_min < ep2.first.lon_acc_min;
+  };
+  auto lambda_lon_max = [](
+    const EnvelopeProbabilityPair ep1, const EnvelopeProbabilityPair& ep2){
+    return ep1.first.lon_acc_max > ep2.first.lon_acc_max;
+  };
+
+  std::vector<EnvelopeProbabilityList> env_prob_list;
+  SortEnvelopes(lat_min_prob_list, lambda_lat_min);
+  SortEnvelopes(lat_max_prob_list, lambda_lat_min);
+  SortEnvelopes(lon_min_prob_list, lambda_lon_min);
+  SortEnvelopes(lon_max_prob_list, lambda_lon_min);
+  env_prob_list.push_back(lat_min_prob_list);
+  env_prob_list.push_back(lat_max_prob_list);
+  env_prob_list.push_back(lon_min_prob_list);
+  env_prob_list.push_back(lon_max_prob_list);
+
+  return env_prob_list;
+}
+
 std::pair<EnvelopeProbabilityList, ViolationProbabilityList>
                                           CalculateAgentsWorstCaseEnvelopes(const ObservedWorld& ego_only_world,
                                                                             const AgentPtr& other_agent,
@@ -82,13 +122,17 @@ std::pair<EnvelopeProbabilityList, ViolationProbabilityList>
       agent_iso_envelopes.push_back(EnvelopeProbabilityPair(agent_envelope, iso_prob_idx));
       agent_violates_at_iso = agent_violates_at_iso || agent_violated;
     }
-    // Choose only worst-case envelope at this iso line
-    auto lambda = [](
-      const EnvelopeProbabilityPair ep1, const EnvelopeProbabilityPair& ep2){
-      return ep1.first < ep2.first;
-    };
-    SortEnvelopes(agent_iso_envelopes, lambda);
-    agent_envelopes.push_back(agent_iso_envelopes.at(0));
+
+    // sort based on min, max lat and long
+    auto envelopes = MinMaxEnvelopeValues(agent_iso_envelopes);
+    auto env_prob = EnvelopeProbabilityPair(
+      Envelope{
+        envelopes[0][0].first.lat_acc_min,
+        envelopes[1][0].first.lat_acc_max,
+        envelopes[2][0].first.lon_acc_min,
+        envelopes[3][0].first.lon_acc_max}, iso_prob_idx);
+    agent_envelopes.push_back(env_prob);
+
     if(agent_violates_at_iso) {
       agent_violations.push_back(ViolationProbabilityPair(true, iso_prob_idx));
     }
@@ -139,46 +183,22 @@ EnvelopeProbabilityPair GetEnvelopeProbabilityPair(
  return EnvelopeProbabilityPair(probabilistic_envelope, current_envelope_risk);
 }
 
+
 EnvelopeProbabilityPair CalculateProbabilisticEnvelope(
   EnvelopeProbabilityList& envelope_probability_list,
   const Probability& violation_threshold,
   const std::vector<double> iso_discretizations) {
 
-  EnvelopeProbabilityList lat_min_prob_list = envelope_probability_list;
-  EnvelopeProbabilityList lat_max_prob_list = envelope_probability_list;
-  EnvelopeProbabilityList lon_min_prob_list = envelope_probability_list;
-  EnvelopeProbabilityList lon_max_prob_list = envelope_probability_list;
-
-  // this needs to be sorted in four directions
-  auto lambda_lat_min = [](
-    const EnvelopeProbabilityPair ep1, const EnvelopeProbabilityPair& ep2){
-    return ep1.first.lat_acc_min < ep2.first.lat_acc_min;
-  };
-  auto lambda_lat_max = [](
-    const EnvelopeProbabilityPair ep1, const EnvelopeProbabilityPair& ep2){
-    return ep1.first.lat_acc_max < ep2.first.lat_acc_max;
-  };
-  auto lambda_lon_min = [](
-    const EnvelopeProbabilityPair ep1, const EnvelopeProbabilityPair& ep2){
-    return ep1.first.lon_acc_min < ep2.first.lon_acc_min;
-  };
-  auto lambda_lon_max = [](
-    const EnvelopeProbabilityPair ep1, const EnvelopeProbabilityPair& ep2){
-    return ep1.first.lon_acc_max < ep2.first.lon_acc_max;
-  };
-  SortEnvelopes(lat_min_prob_list, lambda_lat_min);
-  SortEnvelopes(lat_max_prob_list, lambda_lat_min);
-  SortEnvelopes(lon_min_prob_list, lambda_lon_min);
-  SortEnvelopes(lon_max_prob_list, lambda_lon_min);
+  auto mm_env_value = MinMaxEnvelopeValues(envelope_probability_list);
 
   auto lat_min_pair = GetEnvelopeProbabilityPair(
-    lat_min_prob_list, violation_threshold, iso_discretizations);
+    mm_env_value[0], violation_threshold, iso_discretizations);
   auto lat_max_pair = GetEnvelopeProbabilityPair(
-    lat_max_prob_list, violation_threshold, iso_discretizations);
+    mm_env_value[1], violation_threshold, iso_discretizations);
   auto lon_min_pair = GetEnvelopeProbabilityPair(
-    lon_min_prob_list, violation_threshold, iso_discretizations);
+    mm_env_value[2], violation_threshold, iso_discretizations);
   auto lon_max_pair = GetEnvelopeProbabilityPair(
-    lon_max_prob_list, violation_threshold, iso_discretizations);
+    mm_env_value[3], violation_threshold, iso_discretizations);
 
   return EnvelopeProbabilityPair(
     Envelope{
