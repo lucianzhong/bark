@@ -49,16 +49,18 @@ Eigen::MatrixXd GetObserverCovariance(const ObservedWorld& observed_world) {
   return multivariate_dist->GetCovariance();
 }
 
-void SortEnvelopes(EnvelopeProbabilityList& envelope_probability_list) {
-  std::sort(envelope_probability_list.begin(), envelope_probability_list.end(), [](
-          const EnvelopeProbabilityPair ep1, const EnvelopeProbabilityPair& ep2){
-            return ep1.first < ep2.first;
-  });
+template<typename F>
+void SortEnvelopes(
+  EnvelopeProbabilityList& envelope_probability_list,
+  F& lambda) {
+  std::sort(
+    envelope_probability_list.begin(),
+    envelope_probability_list.end(), lambda);
 }
 
-std::pair<EnvelopeProbabilityList, ViolationProbabilityList> 
+std::pair<EnvelopeProbabilityList, ViolationProbabilityList>
                                           CalculateAgentsWorstCaseEnvelopes(const ObservedWorld& ego_only_world,
-                                                                            const AgentPtr& other_agent, 
+                                                                            const AgentPtr& other_agent,
                                                                             const std::vector<double> iso_discretizations,
                                                                             const Eigen::MatrixXd& observer_covariance,
                                                                             const std::vector<double> angular_discretization,
@@ -81,7 +83,11 @@ std::pair<EnvelopeProbabilityList, ViolationProbabilityList>
       agent_violates_at_iso = agent_violates_at_iso || agent_violated;
     }
     // Choose only worst-case envelope at this iso line
-    SortEnvelopes(agent_iso_envelopes);
+    auto lambda = [](
+      const EnvelopeProbabilityPair ep1, const EnvelopeProbabilityPair& ep2){
+      return ep1.first < ep2.first;
+    };
+    SortEnvelopes(agent_iso_envelopes, lambda);
     agent_envelopes.push_back(agent_iso_envelopes.at(0));
     if(agent_violates_at_iso) {
       agent_violations.push_back(ViolationProbabilityPair(true, iso_prob_idx));
@@ -103,7 +109,7 @@ std::pair<bool, Envelope> GetViolatedAndEnvelope(const ObservedWorld& ego_only_w
     const auto& rss_response = rss_evaluator->GetRSSProperResponse();
     const auto& acc_restrictions_rss = rss_response.accelerationRestrictions;
     VLOG(4) << "RSS Response: " << rss_response;
-    const auto& acc_restrictions = ConvertRestrictions(min_planning_time, acc_restrictions_rss, *ego_world_cloned, 
+    const auto& acc_restrictions = ConvertRestrictions(min_planning_time, acc_restrictions_rss, *ego_world_cloned,
                       false, Polygon(), 0.1);
     return std::make_pair(*eval_res, acc_restrictions.second);
   }
@@ -111,27 +117,75 @@ std::pair<bool, Envelope> GetViolatedAndEnvelope(const ObservedWorld& ego_only_w
   return std::pair(false, Envelope());
 }
 
-EnvelopeProbabilityPair CalculateProbabilisticEnvelope(EnvelopeProbabilityList& envelope_probability_list, const Probability& violation_threshold,
-                                                      const std::vector<double> iso_discretizations) {
-  
+EnvelopeProbabilityPair GetEnvelopeProbabilityPair(
+  EnvelopeProbabilityList envelope_probability_list,
+  const Probability& violation_threshold,
+  const std::vector<double> iso_discretizations) {
   auto GetProbabilityRange = [&](std::size_t iso_prob_idx) {
     return iso_prob_idx == 0 ? iso_discretizations.at(0) : iso_discretizations.at(iso_prob_idx) - iso_discretizations.at(iso_prob_idx-1);
   };
-
-  SortEnvelopes(envelope_probability_list);
   Envelope probabilistic_envelope = envelope_probability_list.at(0).first;
   Probability current_envelope_risk = GetProbabilityRange(envelope_probability_list.at(0).second);
   for(auto env_prob_it = std::next(envelope_probability_list.begin());
-         env_prob_it != envelope_probability_list.end(); ++env_prob_it ) {
-         const auto iso_prob_idx = env_prob_it->second;
-         Probability probability_range = GetProbabilityRange(iso_prob_idx);
-         if(current_envelope_risk + probability_range > violation_threshold) {
-           break;
-         }
-         current_envelope_risk = current_envelope_risk + probability_range;
-         probabilistic_envelope = env_prob_it->first;
+    env_prob_it != envelope_probability_list.end(); ++env_prob_it ) {
+    const auto iso_prob_idx = env_prob_it->second;
+    Probability probability_range = GetProbabilityRange(iso_prob_idx);
+    if(current_envelope_risk + probability_range > violation_threshold) {
+      break;
+    }
+    current_envelope_risk = current_envelope_risk + probability_range;
+    probabilistic_envelope = env_prob_it->first;
   }
-  return EnvelopeProbabilityPair(probabilistic_envelope, current_envelope_risk);
+ return EnvelopeProbabilityPair(probabilistic_envelope, current_envelope_risk);
+}
+
+EnvelopeProbabilityPair CalculateProbabilisticEnvelope(
+  EnvelopeProbabilityList& envelope_probability_list,
+  const Probability& violation_threshold,
+  const std::vector<double> iso_discretizations) {
+
+  EnvelopeProbabilityList lat_min_prob_list = envelope_probability_list;
+  EnvelopeProbabilityList lat_max_prob_list = envelope_probability_list;
+  EnvelopeProbabilityList lon_min_prob_list = envelope_probability_list;
+  EnvelopeProbabilityList lon_max_prob_list = envelope_probability_list;
+
+  // this needs to be sorted in four directions
+  auto lambda_lat_min = [](
+    const EnvelopeProbabilityPair ep1, const EnvelopeProbabilityPair& ep2){
+    return ep1.first.lat_acc_min < ep2.first.lat_acc_min;
+  };
+  auto lambda_lat_max = [](
+    const EnvelopeProbabilityPair ep1, const EnvelopeProbabilityPair& ep2){
+    return ep1.first.lat_acc_max < ep2.first.lat_acc_max;
+  };
+  auto lambda_lon_min = [](
+    const EnvelopeProbabilityPair ep1, const EnvelopeProbabilityPair& ep2){
+    return ep1.first.lon_acc_min < ep2.first.lon_acc_min;
+  };
+  auto lambda_lon_max = [](
+    const EnvelopeProbabilityPair ep1, const EnvelopeProbabilityPair& ep2){
+    return ep1.first.lon_acc_max < ep2.first.lon_acc_max;
+  };
+  SortEnvelopes(lat_min_prob_list, lambda_lat_min);
+  SortEnvelopes(lat_max_prob_list, lambda_lat_min);
+  SortEnvelopes(lon_min_prob_list, lambda_lon_min);
+  SortEnvelopes(lon_max_prob_list, lambda_lon_min);
+
+  auto lat_min_pair = GetEnvelopeProbabilityPair(
+    lat_min_prob_list, violation_threshold, iso_discretizations);
+  auto lat_max_pair = GetEnvelopeProbabilityPair(
+    lat_max_prob_list, violation_threshold, iso_discretizations);
+  auto lon_min_pair = GetEnvelopeProbabilityPair(
+    lon_min_prob_list, violation_threshold, iso_discretizations);
+  auto lon_max_pair = GetEnvelopeProbabilityPair(
+    lon_max_prob_list, violation_threshold, iso_discretizations);
+
+  return EnvelopeProbabilityPair(
+    Envelope{
+      lat_min_pair.first.lat_acc_min,
+      lat_min_pair.first.lat_acc_max,
+      lon_min_pair.first.lon_acc_min,
+      lon_min_pair.first.lon_acc_max}, 0.);
 }
 
 Probability CalculateExpectedViolation(const ViolationProbabilityList& violation_probability_list, const std::vector<double> iso_discretizations) {
@@ -144,8 +198,6 @@ Probability CalculateExpectedViolation(const ViolationProbabilityList& violation
   }
   return violation_risk;
 }
-
-
 
 Trajectory BehaviorSimplexProbabilisticEnvelope::Plan(
     double min_planning_time, const world::ObservedWorld& observed_world) {
@@ -181,10 +233,10 @@ Trajectory BehaviorSimplexProbabilisticEnvelope::Plan(
 
   // Calculate probablistic envelope and expected violation
   current_probabilistic_envelope_ =
-           CalculateProbabilisticEnvelope(envelopes, violation_threshold_, iso_probability_discretizations_); 
+           CalculateProbabilisticEnvelope(envelopes, violation_threshold_, iso_probability_discretizations_);
   current_expected_safety_violation_ = CalculateExpectedViolation(violations, iso_probability_discretizations_);
-  
-  // Handling switching condition and envelope restriction 
+
+  // Handling switching condition and envelope restriction
   Action last_action;
   dynamic::Trajectory last_traj;
   if (current_expected_safety_violation_ > violation_threshold_) {
