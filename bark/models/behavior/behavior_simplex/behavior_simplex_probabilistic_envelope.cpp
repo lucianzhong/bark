@@ -50,6 +50,13 @@ Eigen::MatrixXd GetObserverCovariance(const ObservedWorld& observed_world) {
   return multivariate_dist->GetCovariance();
 }
 
+void Print(EnvelopeProbabilityList& ep_list) {
+  for (auto& ep : ep_list) {
+    std::cout << ep.second << "%: " << ep.first << std::endl;
+  }
+  std::cout << std::endl << std::endl;
+}
+
 template<typename F>
 void SortEnvelopes(
   EnvelopeProbabilityList& envelope_probability_list,
@@ -70,7 +77,7 @@ std::vector<EnvelopeProbabilityList> MinMaxEnvelopeValues(
   // this needs to be sorted in four directions
   auto lambda_lat_min = [](
     const EnvelopeProbabilityPair ep1, const EnvelopeProbabilityPair& ep2){
-    return ep1.first.lat_acc_min < ep2.first.lat_acc_min;
+    return ep1.first.lat_acc_min > ep2.first.lat_acc_min;
   };
   auto lambda_lat_max = [](
     const EnvelopeProbabilityPair ep1, const EnvelopeProbabilityPair& ep2){
@@ -87,9 +94,20 @@ std::vector<EnvelopeProbabilityList> MinMaxEnvelopeValues(
 
   std::vector<EnvelopeProbabilityList> env_prob_list;
   SortEnvelopes(lat_min_prob_list, lambda_lat_min);
-  SortEnvelopes(lat_max_prob_list, lambda_lat_min);
+  SortEnvelopes(lat_max_prob_list, lambda_lat_max);
   SortEnvelopes(lon_min_prob_list, lambda_lon_min);
-  SortEnvelopes(lon_max_prob_list, lambda_lon_min);
+  SortEnvelopes(lon_max_prob_list, lambda_lon_max);
+
+  // DEBUG
+  std::cout << "lat_min_prob_list: " << std::endl;
+  Print(lat_min_prob_list);
+  std::cout << "lat_max_prob_list: " << std::endl;
+  Print(lat_max_prob_list);
+  std::cout << "lon_min_prob_list: " << std::endl;
+  Print(lon_min_prob_list);
+  std::cout << "lon_max_prob_list: " << std::endl;
+  Print(lon_max_prob_list);
+
   env_prob_list.push_back(lat_min_prob_list);
   env_prob_list.push_back(lat_max_prob_list);
   env_prob_list.push_back(lon_min_prob_list);
