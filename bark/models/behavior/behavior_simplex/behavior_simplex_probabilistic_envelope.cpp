@@ -148,7 +148,7 @@ std::pair<EnvelopeProbabilityList, ViolationProbabilityList>
         envelopes[0][0].first.lat_acc_min,
         envelopes[1][0].first.lat_acc_max,
         envelopes[2][0].first.lon_acc_min,
-        envelopes[3][0].first.lon_acc_max}, iso_prob_idx);
+        envelopes[3][0].first.lon_acc_max}, iso_discretizations[iso_prob_idx]);
     agent_envelopes.push_back(env_prob);
 
     if(agent_violates_at_iso) {
