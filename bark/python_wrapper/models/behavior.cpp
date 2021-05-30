@@ -561,6 +561,7 @@ void python_behavior(py::module m) {
       [](const BehaviorSimplexProbabilisticEnvelope& b) {
         return "bark.behavior.BehaviorSimplexProbabilisticEnvelope";
       })
+    .def("GetWorstAgentLocations", &BehaviorSimplexProbabilisticEnvelope::GetWorstAgentLocations )
     .def("GetCurrentProbabilisticEnvelope", &BehaviorSimplexProbabilisticEnvelope::GetCurrentProbabilisticEnvelope )
     .def("GetCurrentExpectedSafetyViolation", &BehaviorSimplexProbabilisticEnvelope::GetCurrentExpectedSafetyViolation )
     .def(py::pickle(
