@@ -42,12 +42,13 @@ using bark::commons::Probability;
 typedef AccelerationLimits Envelope;
 typedef std::pair<Envelope, Probability> EnvelopeProbabilityPair;
 typedef std::vector<EnvelopeProbabilityPair> EnvelopeProbabilityList;
+typedef std::vector<Point2d> AgentLocationList;
 typedef std::pair<bool, Probability> ViolationProbabilityPair;
 typedef std::vector<ViolationProbabilityPair> ViolationProbabilityList;
 
 Eigen::MatrixXd GetObserverCovariance(const ObservedWorld& observed_world);
 
-std::pair<EnvelopeProbabilityList, ViolationProbabilityList>
+std::tuple<EnvelopeProbabilityList, ViolationProbabilityList, AgentLocationList>
                                           CalculateAgentsWorstCaseEnvelopes(const ObservedWorld& ego_only_world,
                                                                             const AgentPtr& other_agent,
                                                                             const std::vector<double> iso_discretizations,
@@ -62,6 +63,7 @@ std::pair<bool, Envelope> GetViolatedAndEnvelope(const ObservedWorld& ego_only_w
                                                 const double min_planning_time);
 
 void SortEnvelopes(EnvelopeProbabilityList& envelope_probability_list);
+int FindIndexEnvelope(EnvelopeProbabilityList envelope_probability_list, const double acc_limit);
 
 EnvelopeProbabilityPair CalculateProbabilisticEnvelope(EnvelopeProbabilityList& envelope_probability_list, const Probability& violation_threshold,
                                                       const std::vector<double> iso_discretizations);
@@ -90,7 +92,7 @@ class BehaviorSimplexProbabilisticEnvelope : public BehaviorRSSConformant {
 
     //double current_expected_safety_violation_;
   double GetCurrentExpectedSafetyViolation() const { return current_expected_safety_violation_;}
-
+  AgentLocationList GetWorstAgentLocations() const {return worst_agent_locations_;}
   EnvelopeProbabilityPair GetCurrentProbabilisticEnvelope() const { return current_probabilistic_envelope_; }
 
  private:
@@ -98,6 +100,7 @@ class BehaviorSimplexProbabilisticEnvelope : public BehaviorRSSConformant {
   std::vector<double>  angular_discretization_;
   double current_expected_safety_violation_;
   EnvelopeProbabilityPair current_probabilistic_envelope_;
+  AgentLocationList worst_agent_locations_;
 
   double violation_threshold_;
 };
