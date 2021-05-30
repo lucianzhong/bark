@@ -121,7 +121,7 @@ def CalculateEnvelopeAndExpectedViolation(x_standard_deviation = 0.2, violation_
   envelope = prob_envelope[0]
   expected_violation = ego_agent.behavior_model.GetCurrentExpectedSafetyViolation()
 
-  return (envelope, expected_violation, world, ego_agent.behavior_model)
+  return envelope, expected_violation, world, ego_agent.behavior_model
 
 def print_rss_safety_response(evaluator_rss, world):
         # Example of using RSS to evaluate the safety situation of the evaluating agent.
@@ -135,10 +135,10 @@ def print_rss_safety_response(evaluator_rss, world):
 
 class PyProbabilisticEnvelopeBehaviorTests(unittest.TestCase):
   def test_increase_standard_deviation(self):
-    envelope1, expected_violation1, ,  = CalculateEnvelopeAndExpectedViolation(0.1, 0.1)
-    envelope2, expected_violation2, , = CalculateEnvelopeAndExpectedViolation(0.2, 0.1)
-    envelope3, expected_violation3, , = CalculateEnvelopeAndExpectedViolation(0.4, 0.1)
-    envelope4, expected_violation4, , = CalculateEnvelopeAndExpectedViolation(0.8, 0.1)
+    envelope1, expected_violation1, _, _ = CalculateEnvelopeAndExpectedViolation(0.1, 0.1)
+    envelope2, expected_violation2, _, _ = CalculateEnvelopeAndExpectedViolation(0.2, 0.1)
+    envelope3, expected_violation3, _, _ = CalculateEnvelopeAndExpectedViolation(0.4, 0.1)
+    envelope4, expected_violation4, _, _ = CalculateEnvelopeAndExpectedViolation(0.8, 0.1)
 
     # print("envelope1: lat_acc_min=%f, lat_max: %f \n lon_acc_min=%f, lon_acc_max=%f"% \
     #   (envelope1.lat_acc_min, envelope1.lat_acc_max, envelope1.lon_acc_min, envelope1.lon_acc_max))
@@ -165,18 +165,20 @@ class PyProbabilisticEnvelopeBehaviorTests(unittest.TestCase):
   def test_visualize_worst_envelope_locations(self):
     envelope, expected_violation, world, behavior_model = CalculateEnvelopeAndExpectedViolation(0.1, 0.1)
     worst_agent_locations = behavior_model.GetWorstAgentLocations()
+    
+    # parameters
+    param_server = ParameterServer(filename=Data.params_data("highway_merge_configurable"))
+    param_server["World"]["LateralDifferenceThreshold"] = 2.0
+    
+    
     # viewer
     viewer = MPViewer(params=param_server,
-                  #x_range=[-75, 75],
-                  #y_range=[-75, 75],
+                  x_range=[-75, 75],
+                  y_range=[-75, 75],
                   follow_agent_id=True)
     viewer.drawWorld(world)
     for location in worst_agent_locations:
       viewer.drawPoint2d(location, color='red', alpha=1.0)
-
-    
-
-
 
 
 if __name__ == '__main__':
