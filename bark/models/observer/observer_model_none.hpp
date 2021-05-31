@@ -24,7 +24,7 @@ using bark::world::ObservedWorld;
 
 /**
  * @brief  Observer creating an ObservedWorld given a World
- * @note   
+ * @note
  * @retval None
  */
 class ObserverModelNone : public ObserverModel {
@@ -45,6 +45,7 @@ class ObserverModelNone : public ObserverModel {
     const WorldPtr& world, const AgentId& agent_id) {
     // NOTE: this creates a standard observed world
     ObservedWorld observed_world(world, agent_id);
+    observed_world.RemoveInvalidAgents();
     return observed_world;
   }
 
