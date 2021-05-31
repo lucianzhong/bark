@@ -135,10 +135,10 @@ def print_rss_safety_response(evaluator_rss, world):
 
 class PyProbabilisticEnvelopeBehaviorTests(unittest.TestCase):
   def test_increase_standard_deviation(self):
-    envelope1, expected_violation1, _, _ = CalculateEnvelopeAndExpectedViolation(0.1, 0.1)
-    envelope2, expected_violation2, _, _ = CalculateEnvelopeAndExpectedViolation(0.2, 0.1)
-    envelope3, expected_violation3, _, _ = CalculateEnvelopeAndExpectedViolation(0.4, 0.1)
-    envelope4, expected_violation4, _, _ = CalculateEnvelopeAndExpectedViolation(0.8, 0.1)
+    envelope1, expected_violation1, _, _ = CalculateEnvelopeAndExpectedViolation(0.01, 0.1)
+    envelope2, expected_violation2, _, _ = CalculateEnvelopeAndExpectedViolation(0.02, 0.1)
+    envelope3, expected_violation3, _, _ = CalculateEnvelopeAndExpectedViolation(0.04, 0.1)
+    envelope4, expected_violation4, _, _ = CalculateEnvelopeAndExpectedViolation(0.08, 0.1)
 
     # print("envelope1: lat_acc_min=%f, lat_max: %f \n lon_acc_min=%f, lon_acc_max=%f"% \
     #   (envelope1.lat_acc_min, envelope1.lat_acc_max, envelope1.lon_acc_min, envelope1.lon_acc_max))
@@ -149,19 +149,61 @@ class PyProbabilisticEnvelopeBehaviorTests(unittest.TestCase):
     # print("envelope4: lat_acc_min=%f, lat_max: %f \n lon_acc_min=%f, lon_acc_max=%f"% \
     #   (envelope4.lat_acc_min, envelope4.lat_acc_max, envelope4.lon_acc_min, envelope4.lon_acc_max))
 
-    # print("expected_violation1: ", expected_violation1)
-    # print("expected_violation2: ", expected_violation2)
-    # print("expected_violation3: ", expected_violation3)
-    # print("expected_violation4: ", expected_violation4)
+    # lat max check
+    self.assertGreaterEqual(envelope1.lat_acc_max, envelope2.lat_acc_max)
+    self.assertGreaterEqual(envelope2.lat_acc_max, envelope3.lat_acc_max)
+    self.assertGreaterEqual(envelope3.lat_acc_max, envelope4.lat_acc_max)
 
-    assert(expected_violation1 < expected_violation2)
-    assert(expected_violation2 < expected_violation3)
-    assert(expected_violation3 < expected_violation4)
+    # lat min check
+    self.assertLessEqual(envelope1.lat_acc_min, envelope2.lat_acc_min)
+    self.assertLessEqual(envelope2.lat_acc_min, envelope3.lat_acc_min)
+    self.assertLessEqual(envelope3.lat_acc_min, envelope4.lat_acc_min)
 
-    assert(envelope1.lat_acc_max > envelope2.lat_acc_max)
-    assert(envelope2.lat_acc_max > envelope3.lat_acc_max)
-    assert(envelope3.lat_acc_max > envelope4.lat_acc_max)
-  
+    # lon min check
+    self.assertLessEqual(envelope1.lon_acc_min, envelope2.lon_acc_min)
+    self.assertLessEqual(envelope2.lon_acc_min, envelope3.lon_acc_min)
+    self.assertLessEqual(envelope3.lon_acc_min, envelope4.lon_acc_min)
+
+    # lon max check
+    self.assertGreaterEqual(envelope1.lat_acc_max, envelope2.lat_acc_max)
+    self.assertGreaterEqual(envelope2.lat_acc_max, envelope3.lat_acc_max)
+    self.assertGreaterEqual(envelope3.lat_acc_max, envelope4.lat_acc_max)
+
+  def test_increase_violation_threshold(self):
+    envelope1, expected_violation1, _, _ = CalculateEnvelopeAndExpectedViolation(0.04, 0.4)
+    envelope2, expected_violation2, _, _ = CalculateEnvelopeAndExpectedViolation(0.04, 0.2)
+    envelope3, expected_violation3, _, _ = CalculateEnvelopeAndExpectedViolation(0.04, 0.1)
+    envelope4, expected_violation4, _, _ = CalculateEnvelopeAndExpectedViolation(0.04, 0.05)
+
+    # print("envelope1: lat_acc_min=%f, lat_max: %f \n lon_acc_min=%f, lon_acc_max=%f"% \
+    #   (envelope1.lat_acc_min, envelope1.lat_acc_max, envelope1.lon_acc_min, envelope1.lon_acc_max))
+    # print("envelope2: lat_acc_min=%f, lat_max: %f \n lon_acc_min=%f, lon_acc_max=%f"% \
+    #   (envelope2.lat_acc_min, envelope2.lat_acc_max, envelope2.lon_acc_min, envelope2.lon_acc_max))
+    # print("envelope3: lat_acc_min=%f, lat_max: %f \n lon_acc_min=%f, lon_acc_max=%f"% \
+    #   (envelope3.lat_acc_min, envelope3.lat_acc_max, envelope3.lon_acc_min, envelope3.lon_acc_max))
+    # print("envelope4: lat_acc_min=%f, lat_max: %f \n lon_acc_min=%f, lon_acc_max=%f"% \
+    #   (envelope4.lat_acc_min, envelope4.lat_acc_max, envelope4.lon_acc_min, envelope4.lon_acc_max))
+
+    # lat max check
+    self.assertGreaterEqual(envelope1.lat_acc_max, envelope2.lat_acc_max)
+    self.assertGreaterEqual(envelope2.lat_acc_max, envelope3.lat_acc_max)
+    self.assertGreaterEqual(envelope3.lat_acc_max, envelope4.lat_acc_max)
+
+    # lat min check
+    self.assertLessEqual(envelope1.lat_acc_min, envelope2.lat_acc_min)
+    self.assertLessEqual(envelope2.lat_acc_min, envelope3.lat_acc_min)
+    self.assertLessEqual(envelope3.lat_acc_min, envelope4.lat_acc_min)
+
+    # lon min check
+    self.assertLessEqual(envelope1.lon_acc_min, envelope2.lon_acc_min)
+    self.assertLessEqual(envelope2.lon_acc_min, envelope3.lon_acc_min)
+    self.assertLessEqual(envelope3.lon_acc_min, envelope4.lon_acc_min)
+
+    # lon max check
+    self.assertGreaterEqual(envelope1.lat_acc_max, envelope2.lat_acc_max)
+    self.assertGreaterEqual(envelope2.lat_acc_max, envelope3.lat_acc_max)
+    self.assertGreaterEqual(envelope3.lat_acc_max, envelope4.lat_acc_max)
+
   def test_visualize_worst_envelope_locations(self):
     envelope, expected_violation, world, behavior_model = CalculateEnvelopeAndExpectedViolation(0.1, 0.1)
     worst_agent_locations = behavior_model.GetWorstAgentLocations()

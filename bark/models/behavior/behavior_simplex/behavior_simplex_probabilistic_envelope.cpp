@@ -77,19 +77,19 @@ std::vector<EnvelopeProbabilityList> MinMaxEnvelopeValues(
   // this needs to be sorted in four directions
   auto lambda_lat_min = [](
     const EnvelopeProbabilityPair ep1, const EnvelopeProbabilityPair& ep2){
-    return ep1.first.lat_acc_min > ep2.first.lat_acc_min;
+    return ep1.first.lat_acc_min  > ep2.first.lat_acc_min;
   };
   auto lambda_lat_max = [](
     const EnvelopeProbabilityPair ep1, const EnvelopeProbabilityPair& ep2){
-    return ep1.first.lat_acc_max > ep2.first.lat_acc_max;
+    return ep1.first.lat_acc_max < ep2.first.lat_acc_max;
   };
   auto lambda_lon_min = [](
     const EnvelopeProbabilityPair ep1, const EnvelopeProbabilityPair& ep2){
-    return ep1.first.lon_acc_min < ep2.first.lon_acc_min;
+    return ep1.first.lon_acc_min > ep2.first.lon_acc_min;
   };
   auto lambda_lon_max = [](
     const EnvelopeProbabilityPair ep1, const EnvelopeProbabilityPair& ep2){
-    return ep1.first.lon_acc_max > ep2.first.lon_acc_max;
+    return ep1.first.lon_acc_max < ep2.first.lon_acc_max;
   };
 
   std::vector<EnvelopeProbabilityList> env_prob_list;
@@ -183,7 +183,7 @@ std::tuple<EnvelopeProbabilityList, ViolationProbabilityList, AgentLocationList>
         envelopes[0][0].first.lat_acc_min,
         envelopes[1][0].first.lat_acc_max,
         envelopes[2][0].first.lon_acc_min,
-        envelopes[3][0].first.lon_acc_max}, iso_discretizations[iso_prob_idx]);
+        envelopes[3][0].first.lon_acc_max}, iso_prob_idx);
     agent_envelopes.push_back(env_prob);
 
     if(agent_violates_at_iso) {
@@ -255,10 +255,11 @@ EnvelopeProbabilityPair CalculateProbabilisticEnvelope(
 
   return EnvelopeProbabilityPair(
     Envelope{
+      lat_max_pair.first.lat_acc_max,
       lat_min_pair.first.lat_acc_min,
-      lat_min_pair.first.lat_acc_max,
+      lon_max_pair.first.lon_acc_max,
       lon_min_pair.first.lon_acc_min,
-      lon_min_pair.first.lon_acc_max}, 0.);
+}, 0.);
 }
 
 Probability CalculateExpectedViolation(const ViolationProbabilityList& violation_probability_list, const std::vector<double> iso_discretizations) {
@@ -308,10 +309,12 @@ Trajectory BehaviorSimplexProbabilisticEnvelope::Plan(
     MoveAppend(agent_locations, locations);
   }
 
-  // Calculate probablistic envelope and expected violation
+  // Calculate probablistic envelope
   current_probabilistic_envelope_ =
            CalculateProbabilisticEnvelope(envelopes, violation_threshold_, iso_probability_discretizations_);
-  current_expected_safety_violation_ = CalculateExpectedViolation(violations, iso_probability_discretizations_);
+
+  // Expected violation must be normalized by number ofcontributing normalized agent state distributions 
+  current_expected_safety_violation_ = CalculateExpectedViolation(violations, iso_probability_discretizations_) /(nearby_agents.size()-1);
   
   int i_worst_envelope;
   // Calculate worst variation agent location causing lat acceleration minimum
