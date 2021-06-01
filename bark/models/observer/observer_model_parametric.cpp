@@ -42,7 +42,7 @@ ObserverModelParametric::ObserverModelParametric(const ObserverModelParametric& 
 
 ObservedWorld ObserverModelParametric::Observe(
     const WorldPtr& world, const AgentId& agent_id) {
-  
+
   // Clone world here since otherwise we change global world state
   auto observed_world = ObservedWorld(world->Clone(), agent_id);
 
@@ -62,6 +62,10 @@ ObservedWorld ObserverModelParametric::Observe(
     AddStateDeviationFrenet(agent.second, others_state_deviation_dist_,
                             previous_observed_world);
   }
+
+  // remove invalid agents after the state deviation
+  // has been added to the agents' states
+  observed_world.RemoveInvalidAgents();
 
   return observed_world;
 }
