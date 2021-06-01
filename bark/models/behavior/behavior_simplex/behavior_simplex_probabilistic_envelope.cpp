@@ -140,12 +140,21 @@ std::tuple<EnvelopeProbabilityList, ViolationProbabilityList, AgentLocationList>
   AgentLocationList agent_locations;
   for (std::size_t iso_prob_idx = 0; iso_prob_idx < iso_discretizations.size(); ++iso_prob_idx) {
     // Create agent variations at a certain iso line
-    const auto& other_agent_variations = ObserveAtIsoLine(other_agent, angular_discretization,
-                                                        observer_covariance, iso_discretizations.at(iso_prob_idx));
+    const auto& other_agent_variations = ObserveAtIsoLine(
+      other_agent, angular_discretization,
+      observer_covariance, iso_discretizations.at(iso_prob_idx));
+
+    // only use agent positions that are within an road corridor
+    std::vector<AgentPtr> valid_agents;
+    for (auto& agent : other_agent_variations) {
+      if (agent->InsideRoadCorridor())
+        valid_agents.push_back(agent);
+    }
+
     EnvelopeProbabilityList agent_iso_envelopes;
     bool agent_violates_at_iso = false;
     // Create all envelopes for these agent variations
-    for (const auto&  other_varied_agent : other_agent_variations) {
+    for (const auto&  other_varied_agent : valid_agents) {
       bool agent_violated;
       Envelope agent_envelope;
       std::tie(agent_violated, agent_envelope) = GetViolatedAndEnvelope(ego_only_world, other_varied_agent, evaluator, min_planning_time);
@@ -155,27 +164,27 @@ std::tuple<EnvelopeProbabilityList, ViolationProbabilityList, AgentLocationList>
 
     // sort based on min, max lat and long
     auto envelopes = MinMaxEnvelopeValues(agent_iso_envelopes);
-    
+
     // extract and store position of worst agent variations
     int i_worst_envelope;
     // took index of latitudinal min worst envelope as the worst envelope to find agent locations
     i_worst_envelope = FindIndexEnvelope(agent_iso_envelopes, envelopes[0][0].first.lat_acc_min);
-    auto&  worst_varied_agent = other_agent_variations[i_worst_envelope];
+    auto&  worst_varied_agent = valid_agents[i_worst_envelope];
     agent_locations.push_back(worst_varied_agent->GetCurrentPosition());
-    
+
     // took index of latitudinal max worst envelope as the worst envelope to find agent locations
     i_worst_envelope = FindIndexEnvelope(agent_iso_envelopes, envelopes[1][0].first.lat_acc_max);
-    auto& worst_varied_agent1 = other_agent_variations[i_worst_envelope];
+    auto& worst_varied_agent1 = valid_agents[i_worst_envelope];
     agent_locations.push_back(worst_varied_agent1->GetCurrentPosition());
 
     // took index of longitudinal min worst envelope as the worst envelope to find agent locations
     i_worst_envelope = FindIndexEnvelope(agent_iso_envelopes, envelopes[2][0].first.lon_acc_min);
-    auto& worst_varied_agent2 = other_agent_variations[i_worst_envelope];
+    auto& worst_varied_agent2 = valid_agents[i_worst_envelope];
     agent_locations.push_back(worst_varied_agent2->GetCurrentPosition());
 
     // took index of longitudinal max worst envelope as the worst envelope to find agent locations
     i_worst_envelope = FindIndexEnvelope(agent_iso_envelopes, envelopes[3][0].first.lon_acc_max);
-    auto& worst_varied_agent3 = other_agent_variations[i_worst_envelope];
+    auto& worst_varied_agent3 = valid_agents[i_worst_envelope];
     agent_locations.push_back(worst_varied_agent3->GetCurrentPosition());
 
     auto env_prob = EnvelopeProbabilityPair(
@@ -313,9 +322,9 @@ Trajectory BehaviorSimplexProbabilisticEnvelope::Plan(
   current_probabilistic_envelope_ =
            CalculateProbabilisticEnvelope(envelopes, violation_threshold_, iso_probability_discretizations_);
 
-  // Expected violation must be normalized by number ofcontributing normalized agent state distributions 
+  // Expected violation must be normalized by number ofcontributing normalized agent state distributions
   current_expected_safety_violation_ = CalculateExpectedViolation(violations, iso_probability_discretizations_) /(nearby_agents.size()-1);
-  
+
   int i_worst_envelope;
   // Calculate worst variation agent location causing lat acceleration minimum
   i_worst_envelope = FindIndexEnvelope(envelopes, current_probabilistic_envelope_.first.lat_acc_min);
