@@ -96,8 +96,6 @@ pybind_library(
     deps = [
     "//bark/python_wrapper/models/plan:planners",
     ":common",
-    "@python_linux//:python-lib",
-    "@pybind11//:pybind11",
     "@com_github_eigen_eigen//:eigen",
     "//bark/models/behavior/constant_acceleration:constant_acceleration",
     "//bark/models/behavior/motion_primitives:motion_primitives",
