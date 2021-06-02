@@ -52,9 +52,8 @@ Eigen::MatrixXd GetObserverCovariance(const ObservedWorld& observed_world) {
 
 void Print(EnvelopeProbabilityList& ep_list) {
   for (auto& ep : ep_list) {
-    std::cout << ep.second << "%: " << ep.first << std::endl;
+    VLOG(5) << ep.second << "%: " << ep.first << std::endl;
   }
-  std::cout << std::endl << std::endl;
 }
 
 template<typename F>
@@ -99,13 +98,13 @@ std::vector<EnvelopeProbabilityList> MinMaxEnvelopeValues(
   SortEnvelopes(lon_max_prob_list, lambda_lon_max);
 
   // DEBUG
-  std::cout << "lat_min_prob_list: " << std::endl;
+  VLOG(5) << "lat_min_prob_list: " << std::endl;
   Print(lat_min_prob_list);
-  std::cout << "lat_max_prob_list: " << std::endl;
+  VLOG(5) << "lat_max_prob_list: " << std::endl;
   Print(lat_max_prob_list);
-  std::cout << "lon_min_prob_list: " << std::endl;
+  VLOG(5) << "lon_min_prob_list: " << std::endl;
   Print(lon_min_prob_list);
-  std::cout << "lon_max_prob_list: " << std::endl;
+  VLOG(5) << "lon_max_prob_list: " << std::endl;
   Print(lon_max_prob_list);
 
   env_prob_list.push_back(lat_min_prob_list);
