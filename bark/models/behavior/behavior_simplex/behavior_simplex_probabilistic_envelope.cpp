@@ -52,7 +52,7 @@ Eigen::MatrixXd GetObserverCovariance(const ObservedWorld& observed_world) {
 
 void Print(EnvelopeProbabilityList& ep_list) {
   for (auto& ep : ep_list) {
-    VLOG(5) << ep.second << "%: " << ep.first << std::endl;
+    VLOG(5) << "AgentId" << ep.other_agent_id_ << ", Iso Idx: " << ep.iso_idx_  << "Envelope:" << ep.envelope_ << std::endl;
   }
 }
 
@@ -75,20 +75,20 @@ std::vector<EnvelopeProbabilityList> MinMaxEnvelopeValues(
 
   // this needs to be sorted in four directions
   auto lambda_lat_min = [](
-    const EnvelopeProbabilityPair ep1, const EnvelopeProbabilityPair& ep2){
-    return ep1.first.lat_acc_min  > ep2.first.lat_acc_min;
+    const AgentEnvelopeProbability ep1, const AgentEnvelopeProbability& ep2){
+    return ep1.envelope_.lat_acc_min  > ep2.envelope_.lat_acc_min;
   };
   auto lambda_lat_max = [](
-    const EnvelopeProbabilityPair ep1, const EnvelopeProbabilityPair& ep2){
-    return ep1.first.lat_acc_max < ep2.first.lat_acc_max;
+    const AgentEnvelopeProbability ep1, const AgentEnvelopeProbability& ep2){
+    return ep1.envelope_.lat_acc_max < ep2.envelope_.lat_acc_max;
   };
   auto lambda_lon_min = [](
-    const EnvelopeProbabilityPair ep1, const EnvelopeProbabilityPair& ep2){
-    return ep1.first.lon_acc_min > ep2.first.lon_acc_min;
+    const AgentEnvelopeProbability ep1, const AgentEnvelopeProbability& ep2){
+    return ep1.envelope_.lon_acc_min > ep2.envelope_.lon_acc_min;
   };
   auto lambda_lon_max = [](
-    const EnvelopeProbabilityPair ep1, const EnvelopeProbabilityPair& ep2){
-    return ep1.first.lon_acc_max < ep2.first.lon_acc_max;
+    const AgentEnvelopeProbability ep1, const AgentEnvelopeProbability& ep2){
+    return ep1.envelope_.lon_acc_max < ep2.envelope_.lon_acc_max;
   };
 
   std::vector<EnvelopeProbabilityList> env_prob_list;
@@ -117,16 +117,16 @@ std::vector<EnvelopeProbabilityList> MinMaxEnvelopeValues(
 
 int FindIndexEnvelope(EnvelopeProbabilityList envelope_probability_list, const double acc_limit){
   for (int i=0; i < envelope_probability_list.size(); i++) {
-    if (envelope_probability_list[i].first.lat_acc_min == acc_limit || \
-        envelope_probability_list[i].first.lat_acc_max == acc_limit || \
-        envelope_probability_list[i].first.lon_acc_min == acc_limit || \
-        envelope_probability_list[i].first.lon_acc_max == acc_limit) return i;
+    if (envelope_probability_list[i].envelope_.lat_acc_min == acc_limit || \
+        envelope_probability_list[i].envelope_.lat_acc_max == acc_limit || \
+        envelope_probability_list[i].envelope_.lon_acc_min == acc_limit || \
+        envelope_probability_list[i].envelope_.lon_acc_max == acc_limit) return i;
     //if (envelope_probability_list[i].first.lon_acc_max == lon_acc_max) return i;
   }
   return -1;
 }
 
-std::tuple<EnvelopeProbabilityList, ViolationProbabilityList, AgentLocationList>
+std::tuple<EnvelopeProbabilityList, AgentViolationList, AgentLocationList>
                                           CalculateAgentsWorstCaseEnvelopes(const ObservedWorld& ego_only_world,
                                                                             const AgentPtr& other_agent,
                                                                             const std::vector<double> iso_discretizations,
@@ -135,7 +135,7 @@ std::tuple<EnvelopeProbabilityList, ViolationProbabilityList, AgentLocationList>
                                                                             std::shared_ptr<BaseEvaluator>& evaluator,
                                                                             const double min_planning_time) {
   EnvelopeProbabilityList agent_envelopes;
-  ViolationProbabilityList agent_violations;
+  AgentViolationList agent_violations;
   AgentLocationList agent_locations;
   for (std::size_t iso_prob_idx = 0; iso_prob_idx < iso_discretizations.size(); ++iso_prob_idx) {
     // Create agent variations at a certain iso line
@@ -160,8 +160,13 @@ std::tuple<EnvelopeProbabilityList, ViolationProbabilityList, AgentLocationList>
     for (const auto&  other_varied_agent : valid_agents) {
       bool agent_violated;
       Envelope agent_envelope;
-      std::tie(agent_violated, agent_envelope) = GetViolatedAndEnvelope(ego_only_world, other_varied_agent, evaluator, min_planning_time);
-      agent_iso_envelopes.push_back(EnvelopeProbabilityPair(agent_envelope, iso_prob_idx));
+      try {
+        std::tie(agent_violated, agent_envelope) = GetViolatedAndEnvelope(ego_only_world, other_varied_agent, evaluator, min_planning_time);
+      } catch (...) {
+        LOG_EVERY_N(WARNING, 100) << "Caught exception when evaluating RSS...";
+      }
+      
+      agent_iso_envelopes.push_back(AgentEnvelopeProbability{other_agent->GetAgentId(), agent_envelope, iso_prob_idx});
       agent_violates_at_iso = agent_violates_at_iso || agent_violated;
     }
 
@@ -171,35 +176,36 @@ std::tuple<EnvelopeProbabilityList, ViolationProbabilityList, AgentLocationList>
     // extract and store position of worst agent variations
     int i_worst_envelope;
     // took index of latitudinal min worst envelope as the worst envelope to find agent locations
-    i_worst_envelope = FindIndexEnvelope(agent_iso_envelopes, envelopes[0][0].first.lat_acc_min);
+    i_worst_envelope = FindIndexEnvelope(agent_iso_envelopes, envelopes[0][0].envelope_.lat_acc_min);
     auto&  worst_varied_agent = valid_agents[i_worst_envelope];
     agent_locations.push_back(worst_varied_agent->GetCurrentPosition());
 
     // took index of latitudinal max worst envelope as the worst envelope to find agent locations
-    i_worst_envelope = FindIndexEnvelope(agent_iso_envelopes, envelopes[1][0].first.lat_acc_max);
+    i_worst_envelope = FindIndexEnvelope(agent_iso_envelopes, envelopes[1][0].envelope_.lat_acc_max);
     auto& worst_varied_agent1 = valid_agents[i_worst_envelope];
     agent_locations.push_back(worst_varied_agent1->GetCurrentPosition());
 
     // took index of longitudinal min worst envelope as the worst envelope to find agent locations
-    i_worst_envelope = FindIndexEnvelope(agent_iso_envelopes, envelopes[2][0].first.lon_acc_min);
+    i_worst_envelope = FindIndexEnvelope(agent_iso_envelopes, envelopes[2][0].envelope_.lon_acc_min);
     auto& worst_varied_agent2 = valid_agents[i_worst_envelope];
     agent_locations.push_back(worst_varied_agent2->GetCurrentPosition());
 
     // took index of longitudinal max worst envelope as the worst envelope to find agent locations
-    i_worst_envelope = FindIndexEnvelope(agent_iso_envelopes, envelopes[3][0].first.lon_acc_max);
+    i_worst_envelope = FindIndexEnvelope(agent_iso_envelopes, envelopes[3][0].envelope_.lon_acc_max);
     auto& worst_varied_agent3 = valid_agents[i_worst_envelope];
     agent_locations.push_back(worst_varied_agent3->GetCurrentPosition());
 
-    auto env_prob = EnvelopeProbabilityPair(
+    auto env_prob = AgentEnvelopeProbability{
+      other_agent->GetAgentId(),
       Envelope{
-        envelopes[0][0].first.lat_acc_min,
-        envelopes[1][0].first.lat_acc_max,
-        envelopes[2][0].first.lon_acc_min,
-        envelopes[3][0].first.lon_acc_max}, iso_prob_idx);
+        envelopes[0][0].envelope_.lat_acc_min,
+        envelopes[1][0].envelope_.lat_acc_max,
+        envelopes[2][0].envelope_.lon_acc_min,
+        envelopes[3][0].envelope_.lon_acc_max}, iso_prob_idx};
     agent_envelopes.push_back(env_prob);
 
     if(agent_violates_at_iso) {
-      agent_violations.push_back(ViolationProbabilityPair(true, iso_prob_idx));
+      agent_violations.push_back(AgentViolationPair(other_agent->GetAgentId(), iso_prob_idx));
     }
   }
   return std::make_tuple(agent_envelopes, agent_violations, agent_locations);
@@ -226,63 +232,90 @@ std::pair<bool, Envelope> GetViolatedAndEnvelope(const ObservedWorld& ego_only_w
   return std::pair(false, Envelope());
 }
 
-EnvelopeProbabilityPair GetEnvelopeProbabilityPair(
+AgentEnvelopeProbability GetProbabilisticEnvelope(
   EnvelopeProbabilityList envelope_probability_list,
   const Probability& violation_threshold,
   const std::vector<double> iso_discretizations) {
   auto GetProbabilityRange = [&](std::size_t iso_prob_idx) {
     return iso_prob_idx == 0 ? iso_discretizations.at(0) : iso_discretizations.at(iso_prob_idx) - iso_discretizations.at(iso_prob_idx-1);
   };
-  Envelope probabilistic_envelope = envelope_probability_list.at(0).first;
-  Probability current_envelope_risk = GetProbabilityRange(envelope_probability_list.at(0).second);
+
+  // Init with smallest possible envelope 
+  std::unordered_map<AgentId, Probability> agent_envelope_risks; // Tracks cdfs of individual agent envelope risks
+  Envelope probabilistic_envelope = envelope_probability_list.at(0).envelope_;
+  agent_envelope_risks[envelope_probability_list.at(0).other_agent_id_] =
+        GetProbabilityRange(envelope_probability_list.at(0).iso_idx_);
+  Probability current_envelope_risk = agent_envelope_risks[envelope_probability_list.at(0).other_agent_id_];
+
+  // Loop from smallest to largest enveloe and update agent specific envelope risk
+  // and check if combined risk is larger then allowed risk threshold
   for(auto env_prob_it = std::next(envelope_probability_list.begin());
     env_prob_it != envelope_probability_list.end(); ++env_prob_it ) {
-    const auto iso_prob_idx = env_prob_it->second;
-    Probability probability_range = GetProbabilityRange(iso_prob_idx);
-    if(current_envelope_risk + probability_range > violation_threshold) {
+    if(current_envelope_risk > violation_threshold) {
       break;
     }
-    current_envelope_risk = current_envelope_risk + probability_range;
-    probabilistic_envelope = env_prob_it->first;
+    const auto iso_prob_idx = env_prob_it->iso_idx_;
+    if (agent_envelope_risks.find(env_prob_it->other_agent_id_) == agent_envelope_risks.end()) {
+      agent_envelope_risks[env_prob_it->other_agent_id_] = GetProbabilityRange(env_prob_it->iso_idx_);
+    } else {
+      agent_envelope_risks[env_prob_it->other_agent_id_] += GetProbabilityRange(env_prob_it->iso_idx_);
+    }
+    
+    // Implements eq. (13) from the paper
+    Probability combined_probability = 1.0;
+    for(const auto agent_envelope_risk : agent_envelope_risks) {
+      combined_probability *= (1 - agent_envelope_risk.second); 
+    }
+    current_envelope_risk = 1 - combined_probability;
+    probabilistic_envelope = env_prob_it->envelope_;
   }
- return EnvelopeProbabilityPair(probabilistic_envelope, current_envelope_risk);
+ return AgentEnvelopeProbability{0, probabilistic_envelope, current_envelope_risk};
 }
 
 
-EnvelopeProbabilityPair CalculateProbabilisticEnvelope(
+AgentEnvelopeProbability CalculateProbabilisticEnvelope(
   EnvelopeProbabilityList& envelope_probability_list,
   const Probability& violation_threshold,
   const std::vector<double> iso_discretizations) {
 
   auto mm_env_value = MinMaxEnvelopeValues(envelope_probability_list);
 
-  auto lat_min_pair = GetEnvelopeProbabilityPair(
+  auto lat_min_pair = GetProbabilisticEnvelope(
     mm_env_value[0], violation_threshold, iso_discretizations);
-  auto lat_max_pair = GetEnvelopeProbabilityPair(
+  auto lat_max_pair = GetProbabilisticEnvelope(
     mm_env_value[1], violation_threshold, iso_discretizations);
-  auto lon_min_pair = GetEnvelopeProbabilityPair(
+  auto lon_min_pair = GetProbabilisticEnvelope(
     mm_env_value[2], violation_threshold, iso_discretizations);
-  auto lon_max_pair = GetEnvelopeProbabilityPair(
+  auto lon_max_pair = GetProbabilisticEnvelope(
     mm_env_value[3], violation_threshold, iso_discretizations);
 
-  return EnvelopeProbabilityPair(
+  return AgentEnvelopeProbability{
+    0,
     Envelope{
-      lat_max_pair.first.lat_acc_max,
-      lat_min_pair.first.lat_acc_min,
-      lon_max_pair.first.lon_acc_max,
-      lon_min_pair.first.lon_acc_min,
-}, 0.);
+      lat_max_pair.envelope_.lat_acc_max,
+      lat_min_pair.envelope_.lat_acc_min,
+      lon_max_pair.envelope_.lon_acc_max,
+      lon_min_pair.envelope_.lon_acc_min,
+}, 0};
 }
 
-Probability CalculateExpectedViolation(const ViolationProbabilityList& violation_probability_list, const std::vector<double> iso_discretizations) {
+Probability CalculateExpectedViolation(const AgentViolationList& violation_probability_list, const std::vector<double> iso_discretizations) {
   auto GetProbabilityRange = [&](std::size_t iso_prob_idx) {
     return iso_prob_idx == 0 ? iso_discretizations.at(0) : iso_discretizations.at(iso_prob_idx) - iso_discretizations.at(iso_prob_idx-1);
   };
-  Probability violation_risk = 0.0;
-  for(const auto& violation_probability : violation_probability_list) {
-    violation_risk += GetProbabilityRange(violation_probability.second);
+  std::unordered_map<AgentId, Probability> agent_violation_risks;
+  Probability max_violation_probability = 0.0;
+  for(const auto& agent_violation : violation_probability_list) {
+    if (agent_violation_risks.find(agent_violation.first) == agent_violation_risks.end()) {
+      agent_violation_risks[agent_violation.first] = GetProbabilityRange(agent_violation.second);
+    } else {
+      agent_violation_risks[agent_violation.first] += GetProbabilityRange(agent_violation.second);
+    }
+    if (agent_violation_risks[agent_violation.first] > max_violation_probability) {
+      max_violation_probability = agent_violation_risks[agent_violation.first];
+    }
   }
-  return violation_risk;
+  return max_violation_probability;
 }
 
 Trajectory BehaviorSimplexProbabilisticEnvelope::Plan(
@@ -304,7 +337,7 @@ Trajectory BehaviorSimplexProbabilisticEnvelope::Plan(
       observed_world.GetNearestAgents(ego_position, max_nearest_agents);
 
   EnvelopeProbabilityList envelopes;
-  ViolationProbabilityList violations;
+  AgentViolationList violations;
   AgentLocationList locations;
 
   for (const auto& other_agent : nearby_agents) {
@@ -326,32 +359,32 @@ Trajectory BehaviorSimplexProbabilisticEnvelope::Plan(
            CalculateProbabilisticEnvelope(envelopes, violation_threshold_, iso_probability_discretizations_);
 
   // Expected violation must be normalized by number ofcontributing normalized agent state distributions
-  current_expected_safety_violation_ = CalculateExpectedViolation(violations, iso_probability_discretizations_) /(nearby_agents.size()-1);
+  current_expected_safety_violation_ = CalculateExpectedViolation(violations, iso_probability_discretizations_);
 
   int i_worst_envelope;
   // Calculate worst variation agent location causing lat acceleration minimum
-  i_worst_envelope = FindIndexEnvelope(envelopes, current_probabilistic_envelope_.first.lat_acc_min);
+  i_worst_envelope = FindIndexEnvelope(envelopes, current_probabilistic_envelope_.envelope_.lat_acc_min);
   worst_agent_locations_.push_back(locations[i_worst_envelope]);
   worst_agent_locations_.push_back(locations[i_worst_envelope+1]);
   worst_agent_locations_.push_back(locations[i_worst_envelope+2]);
   worst_agent_locations_.push_back(locations[i_worst_envelope+3]);
 
   // Calculate worst variation agent location causing lat acceleration maximum
-  i_worst_envelope = FindIndexEnvelope(envelopes, current_probabilistic_envelope_.first.lat_acc_max);
+  i_worst_envelope = FindIndexEnvelope(envelopes, current_probabilistic_envelope_.envelope_.lat_acc_max);
   worst_agent_locations_.push_back(locations[i_worst_envelope]);
   worst_agent_locations_.push_back(locations[i_worst_envelope+1]);
   worst_agent_locations_.push_back(locations[i_worst_envelope+2]);
   worst_agent_locations_.push_back(locations[i_worst_envelope+3]);
 
   // Calculate worst variation agent location causing long acceleration minimum
-  i_worst_envelope = FindIndexEnvelope(envelopes, current_probabilistic_envelope_.first.lon_acc_min);
+  i_worst_envelope = FindIndexEnvelope(envelopes, current_probabilistic_envelope_.envelope_.lon_acc_min);
   worst_agent_locations_.push_back(locations[i_worst_envelope]);
   worst_agent_locations_.push_back(locations[i_worst_envelope+1]);
   worst_agent_locations_.push_back(locations[i_worst_envelope+2]);
   worst_agent_locations_.push_back(locations[i_worst_envelope+3]);
 
   // Calculate worst variation agent location causing long acceleration maximum
-  i_worst_envelope = FindIndexEnvelope(envelopes, current_probabilistic_envelope_.first.lon_acc_max);
+  i_worst_envelope = FindIndexEnvelope(envelopes, current_probabilistic_envelope_.envelope_.lon_acc_max);
   worst_agent_locations_.push_back(locations[i_worst_envelope]);
   worst_agent_locations_.push_back(locations[i_worst_envelope+1]);
   worst_agent_locations_.push_back(locations[i_worst_envelope+2]);
@@ -367,7 +400,7 @@ Trajectory BehaviorSimplexProbabilisticEnvelope::Plan(
     behavior_rss_status_ = BehaviorRSSConformantStatus::SAFETY_BEHAVIOR;
   } else {
     #ifdef RSS
-    ApplyRestrictionsToModel(current_probabilistic_envelope_.first,
+    ApplyRestrictionsToModel(current_probabilistic_envelope_.envelope_,
                                nominal_behavior_model_);
     #endif
     nominal_behavior_model_->Plan(min_planning_time, observed_world);

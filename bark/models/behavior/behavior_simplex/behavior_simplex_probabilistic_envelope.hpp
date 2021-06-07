@@ -40,15 +40,19 @@ using world::objects::AgentPtr;
 using bark::commons::Probability;
 
 typedef AccelerationLimits Envelope;
-typedef std::pair<Envelope, Probability> EnvelopeProbabilityPair;
-typedef std::vector<EnvelopeProbabilityPair> EnvelopeProbabilityList;
+typedef struct AgentEnvelopeProbability {
+  AgentId other_agent_id_;
+  Envelope envelope_;
+  unsigned int iso_idx_;
+} AgentEnvelopeProbability;
+typedef std::vector<AgentEnvelopeProbability> EnvelopeProbabilityList;
 typedef std::vector<Point2d> AgentLocationList;
-typedef std::pair<bool, Probability> ViolationProbabilityPair;
-typedef std::vector<ViolationProbabilityPair> ViolationProbabilityList;
+typedef std::pair<AgentId, Probability> AgentViolationPair;
+typedef std::vector<AgentViolationPair> AgentViolationList;
 
 Eigen::MatrixXd GetObserverCovariance(const ObservedWorld& observed_world);
 
-std::tuple<EnvelopeProbabilityList, ViolationProbabilityList, AgentLocationList>
+std::tuple<EnvelopeProbabilityList, AgentViolationList, AgentLocationList>
                                           CalculateAgentsWorstCaseEnvelopes(const ObservedWorld& ego_only_world,
                                                                             const AgentPtr& other_agent,
                                                                             const std::vector<double> iso_discretizations,
@@ -65,10 +69,10 @@ std::pair<bool, Envelope> GetViolatedAndEnvelope(const ObservedWorld& ego_only_w
 void SortEnvelopes(EnvelopeProbabilityList& envelope_probability_list);
 int FindIndexEnvelope(EnvelopeProbabilityList envelope_probability_list, const double acc_limit);
 
-EnvelopeProbabilityPair CalculateProbabilisticEnvelope(EnvelopeProbabilityList& envelope_probability_list, const Probability& violation_threshold,
+AgentEnvelopeProbability CalculateProbabilisticEnvelope(EnvelopeProbabilityList& envelope_probability_list, const Probability& violation_threshold,
                                                       const std::vector<double> iso_discretizations);
 
-Probability CalculateExpectedViolation(const ViolationProbabilityList& violation_probability_list, const std::vector<double> iso_discretizations);
+Probability CalculateExpectedViolation(const AgentViolationList& violation_probability_list, const std::vector<double> iso_discretizations);
 
 
 class BehaviorSimplexProbabilisticEnvelope : public BehaviorRSSConformant {
@@ -93,13 +97,13 @@ class BehaviorSimplexProbabilisticEnvelope : public BehaviorRSSConformant {
     //double current_expected_safety_violation_;
   double GetCurrentExpectedSafetyViolation() const { return current_expected_safety_violation_;}
   AgentLocationList GetWorstAgentLocations() const {return worst_agent_locations_;}
-  EnvelopeProbabilityPair GetCurrentProbabilisticEnvelope() const { return current_probabilistic_envelope_; }
+  Envelope GetCurrentProbabilisticEnvelope() const { return current_probabilistic_envelope_.envelope_; }
 
  private:
   std::vector<double>  iso_probability_discretizations_;
   std::vector<double>  angular_discretization_;
   double current_expected_safety_violation_;
-  EnvelopeProbabilityPair current_probabilistic_envelope_;
+  AgentEnvelopeProbability current_probabilistic_envelope_;
   AgentLocationList worst_agent_locations_;
 
   double violation_threshold_;

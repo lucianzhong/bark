@@ -25,6 +25,7 @@ from bark.runtime.scenario.scenario_generation.deterministic \
 from bark.runtime.scenario.scenario_generation.scenario_generation \
   import ScenarioGeneration
 
+import bark
 from bark.core.world.goal_definition import GoalDefinition, GoalDefinitionPolygon
 from bark.core.geometry import *
 from bark.core.world import World
@@ -35,6 +36,7 @@ from bark.core.models.behavior import BehaviorModel, BehaviorDynamicModel
 from bark.core.models.dynamic import SingleTrackModel
 
 import time
+import sys
 from bark.runtime.viewer.video_renderer import VideoRenderer
 from bark.runtime.scenario.scenario_generation.config_with_ease import \
     LaneCorridorConfig, ConfigWithEase
@@ -42,6 +44,9 @@ from bark.runtime.runtime import Runtime
 from bark.examples.paths import Data
 from bark.core.models.behavior import *
 from bark.core.models.observer import *
+
+bark.core.commons.GLogInit(sys.argv[0], "log_folder", 5, True)
+
 
 try:
     from bark.core.world.evaluation import EvaluatorRSS
@@ -118,10 +123,9 @@ def CalculateEnvelopeAndExpectedViolation(x_standard_deviation = 0.2, violation_
     BehaviorSimplexProbabilisticEnvelope(params_behavior)
   world.Step(0.2)
   prob_envelope = ego_agent.behavior_model.GetCurrentProbabilisticEnvelope()
-  envelope = prob_envelope[0]
   expected_violation = ego_agent.behavior_model.GetCurrentExpectedSafetyViolation()
 
-  return envelope, expected_violation, world, ego_agent.behavior_model
+  return prob_envelope, expected_violation, world, ego_agent.behavior_model
 
 def print_rss_safety_response(evaluator_rss, world):
         # Example of using RSS to evaluate the safety situation of the evaluating agent.
@@ -134,41 +138,6 @@ def print_rss_safety_response(evaluator_rss, world):
         #       evaluator_rss.PairwiseDirectionalEvaluate(world))
 
 class PyProbabilisticEnvelopeBehaviorTests(unittest.TestCase):
-  def test_increase_standard_deviation(self):
-    envelope1, expected_violation1, _, _ = CalculateEnvelopeAndExpectedViolation(0.01, 0.1)
-    envelope2, expected_violation2, _, _ = CalculateEnvelopeAndExpectedViolation(0.02, 0.1)
-    envelope3, expected_violation3, _, _ = CalculateEnvelopeAndExpectedViolation(0.04, 0.1)
-    envelope4, expected_violation4, _, _ = CalculateEnvelopeAndExpectedViolation(0.08, 0.1)
-
-    # print("envelope1: lat_acc_min=%f, lat_max: %f \n lon_acc_min=%f, lon_acc_max=%f"% \
-    #   (envelope1.lat_acc_min, envelope1.lat_acc_max, envelope1.lon_acc_min, envelope1.lon_acc_max))
-    # print("envelope2: lat_acc_min=%f, lat_max: %f \n lon_acc_min=%f, lon_acc_max=%f"% \
-    #   (envelope2.lat_acc_min, envelope2.lat_acc_max, envelope2.lon_acc_min, envelope2.lon_acc_max))
-    # print("envelope3: lat_acc_min=%f, lat_max: %f \n lon_acc_min=%f, lon_acc_max=%f"% \
-    #   (envelope3.lat_acc_min, envelope3.lat_acc_max, envelope3.lon_acc_min, envelope3.lon_acc_max))
-    # print("envelope4: lat_acc_min=%f, lat_max: %f \n lon_acc_min=%f, lon_acc_max=%f"% \
-    #   (envelope4.lat_acc_min, envelope4.lat_acc_max, envelope4.lon_acc_min, envelope4.lon_acc_max))
-
-    # lat max check
-    self.assertGreaterEqual(envelope1.lat_acc_max, envelope2.lat_acc_max)
-    self.assertGreaterEqual(envelope2.lat_acc_max, envelope3.lat_acc_max)
-    self.assertGreaterEqual(envelope3.lat_acc_max, envelope4.lat_acc_max)
-
-    # lat min check
-    self.assertLessEqual(envelope1.lat_acc_min, envelope2.lat_acc_min)
-    self.assertLessEqual(envelope2.lat_acc_min, envelope3.lat_acc_min)
-    self.assertLessEqual(envelope3.lat_acc_min, envelope4.lat_acc_min)
-
-    # lon min check
-    self.assertLessEqual(envelope1.lon_acc_min, envelope2.lon_acc_min)
-    self.assertLessEqual(envelope2.lon_acc_min, envelope3.lon_acc_min)
-    self.assertLessEqual(envelope3.lon_acc_min, envelope4.lon_acc_min)
-
-    # lon max check
-    self.assertGreaterEqual(envelope1.lat_acc_max, envelope2.lat_acc_max)
-    self.assertGreaterEqual(envelope2.lat_acc_max, envelope3.lat_acc_max)
-    self.assertGreaterEqual(envelope3.lat_acc_max, envelope4.lat_acc_max)
-
   def test_increase_violation_threshold(self):
     envelope1, expected_violation1, _, _ = CalculateEnvelopeAndExpectedViolation(0.04, 0.4)
     envelope2, expected_violation2, _, _ = CalculateEnvelopeAndExpectedViolation(0.04, 0.2)
