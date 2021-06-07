@@ -153,6 +153,10 @@ std::tuple<EnvelopeProbabilityList, ViolationProbabilityList, AgentLocationList>
     EnvelopeProbabilityList agent_iso_envelopes;
     bool agent_violates_at_iso = false;
     // Create all envelopes for these agent variations
+    if(valid_agents.empty()) {
+      continue;
+    }
+
     for (const auto&  other_varied_agent : valid_agents) {
       bool agent_violated;
       Envelope agent_envelope;
