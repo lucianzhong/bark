@@ -397,6 +397,7 @@ RssInterface::ExtractPairwiseDirectionalSafetyEvaluation(
 bool RssInterface::GenerateRSSWorld(const ObservedWorld& observed_world,
                                     ::ad::rss::world::WorldModel& rss_world) {
   AgentPtr agent = observed_world.GetEgoAgent();
+  if(!agent) return false;
   AgentId agent_id = observed_world.GetEgoAgentId();
 
   const auto center = agent->GetGoalDefinition()->GetShape().center_;

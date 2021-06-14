@@ -322,6 +322,15 @@ Trajectory BehaviorSimplexProbabilisticEnvelope::Plan(
     double min_planning_time, const world::ObservedWorld& observed_world) {
   SetBehaviorStatus(BehaviorStatus::VALID);
 
+
+  bool preprocess_lane_res = PreprocessLaneInformation(observed_world);
+  if (!preprocess_lane_res) {
+    VLOG(4) << "Agent " << observed_world.GetEgoAgentId()
+            << ": Behavior status has expired!" << std::endl;
+    SetBehaviorStatus(BehaviorStatus::EXPIRED);
+    return GetLastTrajectory();
+  }
+
   // Collect Worst-Case Envelopes over all other agents
   const auto ego_agent = observed_world.GetEgoAgent();
   auto ego_only_world = std::dynamic_pointer_cast<ObservedWorld>(observed_world.Clone());

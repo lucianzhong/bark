@@ -90,17 +90,21 @@ class EvaluationConfig:
           except:
             try:
               evaluator_bark = eval(
-                "{}(evaluator_params['params'], eval_agent_ids[0])".format(evaluator_params["type"]))
-            except NameError:
-              for module_name in self.GetEvaluationModuleNames():
-                try:
-                  module = importlib.import_module(module_name)
-                  eval_type = getattr(module, evaluator_params["type"])
-                  evaluator_bark = eval("eval_type(evaluator_params['params'], eval_agent_ids[0])")
-                except:
-                  pass
-              if not evaluator_bark:
-                raise ValueError("Invalid evaluation spec.")
+                "{}(eval_agent_ids[0], evaluator_params['params'])".format(evaluator_params["type"]))
+            except:
+              try:
+                evaluator_bark = eval(
+                  "{}(evaluator_params['params'], eval_agent_ids[0])".format(evaluator_params["type"]))
+              except NameError:
+                for module_name in self.GetEvaluationModuleNames():
+                  try:
+                    module = importlib.import_module(module_name)
+                    eval_type = getattr(module, evaluator_params["type"])
+                    evaluator_bark = eval("eval_type(evaluator_params['params'], eval_agent_ids[0])")
+                  except:
+                    pass
+                if not evaluator_bark:
+                  raise ValueError("Invalid evaluation spec.")
       elif issubclass(type(evaluator_params), BaseEvaluator):
           evaluator_bark = copy.deepcopy(evaluator_params)
           evaluator_bark.SetAgentId(eval_agent_ids[0])
