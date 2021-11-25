@@ -29,7 +29,9 @@ BehaviorDynamicModel::BehaviorDynamicModel(const commons::ParamsPtr& params)
     : BehaviorModel(params),
       integration_time_delta_(
           params->GetReal("BehaviorDynamicModel::IntegrationTimeDelta",
-                          "delta t for integration", 0.05)) {
+                          "delta t for integration", 0.05)),
+         kappa_max_(params->GetReal("BehaviorDynamicModel::KappaMax",
+                          "max steering rate", 0.03)) {
       Input inp(2);
       inp << 0., 0.;
       action_ = inp;
@@ -47,6 +49,14 @@ dynamic::Trajectory BehaviorDynamicModel::Plan(
 
   dynamic::State ego_vehicle_state =
       observed_world.GetEgoAgent()->GetCurrentState();
+  Input last_input = boost::get<Input>(action_);
+
+  LOG(INFO) << "hist size = " << observed_world.GetEgoAgent()->GetStateInputHistory().size();
+  try {
+      Input last_input = boost::get<Input>(
+      observed_world.GetEgoAgent()->GetLastAction());
+  } catch(boost::bad_get) {}
+  
   double start_time = observed_world.GetWorldTime();
   double dt = integration_time_delta_;
   int num_trajectory_points =
@@ -56,18 +66,31 @@ dynamic::Trajectory BehaviorDynamicModel::Plan(
                            static_cast<int>(StateDefinition::MIN_STATE_SIZE));
 
   // this action is set externally. e.g. by RL
-  Input action = boost::get<Input>(action_);
+  Input current_input = boost::get<Input>(action_);
 
-  // generate a trajectory with const. action
+  // Handle steering limits when second input is kappa
+  const double last_delta = last_input(1);
+  const double current_delta = current_input(1);
+  LOG(INFO) << "current input: " << current_input(1) << ", last input: " << last_input(1);
+  if( (current_delta - last_delta) / min_planning_time > kappa_max_) {
+    current_input(1) = current_delta + min_planning_time * kappa_max_;
+    LOG(INFO) << "limiting c=" << current_delta << " and l=" << last_delta <<  " to " << current_input(1);
+  } else if ( (current_delta - last_delta) / min_planning_time < - kappa_max_) {
+    current_input(1) = current_delta - min_planning_time * kappa_max_;
+    LOG(INFO) << "limiting c=" << current_delta << " and l=" << last_delta <<  " to " << current_input(1);
+  }
+
+  // generate a trajectory
   traj.row(0) = ego_vehicle_state;
   for (int i = 1; i < num_trajectory_points; i++) {
     auto next_state =
-        dynamic::euler_int(*dynamic_model, traj.row(i - 1), action, dt);
+        dynamic::euler_int(*dynamic_model, traj.row(i - 1), current_input, dt);
     traj.row(i) = next_state;
     traj(i, 0) = start_time + i * dt;
   }
 
   this->SetLastTrajectory(traj);
+  this->SetLastAction(current_input);
   return traj;
 }
 

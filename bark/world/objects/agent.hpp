@@ -121,6 +121,8 @@ class Agent : public Object {
 
   State GetCurrentState() const { return history_.back().first; }
 
+  Action GetLastAction() const { return history_.back().second; }
+
   Point2d GetCurrentPosition() const {
     const State& state = GetCurrentState();
     return Point2d(state(StateDefinition::X_POSITION),

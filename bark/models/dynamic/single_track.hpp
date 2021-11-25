@@ -63,7 +63,7 @@ class SingleTrackModel : public DynamicModel {
   }
   virtual ~SingleTrackModel() {}
 
-  State StateSpaceModel(const State& x, const Input& u) const {
+  virtual State StateSpaceModel(const State& x, const Input& u) const {
     State tmp(static_cast<int>(StateDefinition::MIN_STATE_SIZE));
     tmp << 1,
         x(StateDefinition::VEL_POSITION) *
@@ -74,7 +74,7 @@ class SingleTrackModel : public DynamicModel {
     return tmp;
   }
 
-  std::shared_ptr<DynamicModel> Clone() const {
+  virtual std::shared_ptr<DynamicModel> Clone() const {
     std::shared_ptr<SingleTrackModel> model_ptr =
         std::make_shared<SingleTrackModel>(*this);
     return std::dynamic_pointer_cast<DynamicModel>(model_ptr);

@@ -41,6 +41,7 @@ class BehaviorDynamicModel : public BehaviorModel {
 
  private:
   double integration_time_delta_;
+  double kappa_max_;
   Action action_;
 };
 
