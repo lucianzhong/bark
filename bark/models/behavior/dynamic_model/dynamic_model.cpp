@@ -68,11 +68,12 @@ dynamic::Trajectory BehaviorDynamicModel::Plan(
   // Handle steering limits when second input is kappa
   const double last_delta = last_input(1);
   const double current_delta = current_input(1);
-  if( (current_delta - last_delta) / min_planning_time > kappa_max_) {
-    current_input(1) = current_delta + min_planning_time * kappa_max_;
+  const double delta_max = atan(kappa_max_)*single_track->GetWheelBase();
+  if( (current_delta - last_delta) / min_planning_time > delta_max) {
+    current_input(1) = current_delta + min_planning_time * delta_max;
     LOG(INFO) << "limiting c=" << current_delta << " and l=" << last_delta <<  " to " << current_input(1);
-  } else if ( (current_delta - last_delta) / min_planning_time < - kappa_max_) {
-    current_input(1) = current_delta - min_planning_time * kappa_max_;
+  } else if ( (current_delta - last_delta) / min_planning_time < - delta_max) {
+    current_input(1) = current_delta - min_planning_time * delta_max;
     LOG(INFO) << "limiting c=" << current_delta << " and l=" << last_delta <<  " to " << current_input(1);
   }
 
