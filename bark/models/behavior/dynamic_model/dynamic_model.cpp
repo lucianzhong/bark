@@ -35,6 +35,7 @@ BehaviorDynamicModel::BehaviorDynamicModel(const commons::ParamsPtr& params)
       Input inp(2);
       inp << 0., 0.;
       action_ = inp;
+      SetLastAction(action_);
   }
 
 dynamic::Trajectory BehaviorDynamicModel::Plan(
@@ -49,13 +50,11 @@ dynamic::Trajectory BehaviorDynamicModel::Plan(
 
   dynamic::State ego_vehicle_state =
       observed_world.GetEgoAgent()->GetCurrentState();
-  Input last_input = boost::get<Input>(action_);
 
   LOG(INFO) << "hist size = " << observed_world.GetEgoAgent()->GetStateInputHistory().size();
-  try {
-      Input last_input = boost::get<Input>(
-      observed_world.GetEgoAgent()->GetLastAction());
-  } catch(boost::bad_get) {}
+
+  Input last_input = boost::get<Input>(
+  observed_world.GetEgoAgent()->GetLastAction());
   
   double start_time = observed_world.GetWorldTime();
   double dt = integration_time_delta_;
