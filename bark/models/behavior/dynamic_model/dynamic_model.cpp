@@ -51,8 +51,6 @@ dynamic::Trajectory BehaviorDynamicModel::Plan(
   dynamic::State ego_vehicle_state =
       observed_world.GetEgoAgent()->GetCurrentState();
 
-  LOG(INFO) << "hist size = " << observed_world.GetEgoAgent()->GetStateInputHistory().size();
-
   Input last_input = boost::get<Input>(
   observed_world.GetEgoAgent()->GetLastAction());
   
@@ -70,7 +68,6 @@ dynamic::Trajectory BehaviorDynamicModel::Plan(
   // Handle steering limits when second input is kappa
   const double last_delta = last_input(1);
   const double current_delta = current_input(1);
-  LOG(INFO) << "current input: " << current_input(1) << ", last input: " << last_input(1);
   if( (current_delta - last_delta) / min_planning_time > kappa_max_) {
     current_input(1) = current_delta + min_planning_time * kappa_max_;
     LOG(INFO) << "limiting c=" << current_delta << " and l=" << last_delta <<  " to " << current_input(1);
