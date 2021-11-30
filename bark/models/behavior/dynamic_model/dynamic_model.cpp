@@ -71,10 +71,8 @@ dynamic::Trajectory BehaviorDynamicModel::Plan(
   const double delta_max = atan(kappa_max_)*single_track->GetWheelBase();
   if( (current_delta - last_delta) / min_planning_time > delta_max) {
     current_input(1) = current_delta + min_planning_time * delta_max;
-    LOG(INFO) << "limiting c=" << current_delta << " and l=" << last_delta <<  " to " << current_input(1);
   } else if ( (current_delta - last_delta) / min_planning_time < - delta_max) {
     current_input(1) = current_delta - min_planning_time * delta_max;
-    LOG(INFO) << "limiting c=" << current_delta << " and l=" << last_delta <<  " to " << current_input(1);
   }
 
   // generate a trajectory
