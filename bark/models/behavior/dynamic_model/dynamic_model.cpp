@@ -30,8 +30,8 @@ BehaviorDynamicModel::BehaviorDynamicModel(const commons::ParamsPtr& params)
       integration_time_delta_(
           params->GetReal("BehaviorDynamicModel::IntegrationTimeDelta",
                           "delta t for integration", 0.05)),
-         kappa_max_(params->GetReal("BehaviorDynamicModel::KappaMax",
-                          "max steering rate", 0.03)) {
+         delta_max_derivative_(params->GetReal("BehaviorDynamicModel::DeltaMaxDerivative",
+                          "max steering rate [rad/s]", 4.0)) {
       Input inp(2);
       inp << 0., 0.;
       action_ = inp;
@@ -68,11 +68,10 @@ dynamic::Trajectory BehaviorDynamicModel::Plan(
   // Handle steering limits when second input is kappa
   const double last_delta = last_input(1);
   const double current_delta = current_input(1);
-  const double delta_max = atan(kappa_max_)*single_track->GetWheelBase();
-  if( (current_delta - last_delta) / min_planning_time > delta_max) {
-    current_input(1) = current_delta + min_planning_time * delta_max;
-  } else if ( (current_delta - last_delta) / min_planning_time < - delta_max) {
-    current_input(1) = current_delta - min_planning_time * delta_max;
+  if( (current_delta - last_delta) / min_planning_time > delta_max_derivative_) {
+    current_input(1) = current_delta + min_planning_time * delta_max_derivative_;
+  } else if ( (current_delta - last_delta) / min_planning_time < - delta_max_derivative_) {
+    current_input(1) = current_delta - min_planning_time * delta_max_derivative_;
   }
 
   // generate a trajectory
